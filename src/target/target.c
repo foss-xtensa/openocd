@@ -1506,6 +1506,12 @@ int target_gdb_query_custom(struct target *target, const char *packet, char **re
 	return target->type->gdb_query_custom(target, packet, response_p);
 }
 
+bool target_restart_requires_response(struct target *target)
+{
+	return target->type->gdb_restart_resp_req && 
+        target->type->gdb_restart_resp_req(target);
+}
+
 target_addr_t target_address_max(struct target *target)
 {
 	unsigned bits = target_address_bits(target);

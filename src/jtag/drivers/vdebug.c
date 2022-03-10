@@ -400,7 +400,7 @@ int exec_jtag_queue(int hsock, struct vd_shm *pm, uint32_t count)
 		waddr += 2;                    /* waddr past header */
 		tdi = (pm->wd8[waddr * 4] >> num_pre) | (pm->wd8[waddr * 4 + 1] << (8 - num_pre));
 		tms = (pm->wd8[waddr * 4 + 4] >> num_pre) | (pm->wd8[waddr * 4 + 4 + 1] << (8 - num_pre));
-		LOG_DEBUG("%04x L:%02d O:%05x @%03x DI:%02x MS:%02x DO:%02x",
+		LOG_DEBUG_IO("%04x L:%02d O:%05x @%03x DI:%02x MS:%02x DO:%02x",
 			pm->wid-count+req, num, ((vdc.trans_first << 14)|(vdc.trans_last << 15)),
 			waddr - 2, tdi, tms, (tdo ? tdo[0] : 0xdd));
 		waddr += hwords * 2;           /* start of next request */
@@ -497,7 +497,7 @@ static int vdebug_wait(int hsock, struct vd_shm *pm, uint32_t cycles)
 		LOG_ERROR("Error 0x%x waiting %d cycles", rc, cycles);
 		rc = ERROR_FAIL;
 	} else
-		LOG_DEBUG("%d cycles", cycles);
+		LOG_DEBUG_IO("%d cycles", cycles);
 
 	return rc;
 }
@@ -726,7 +726,7 @@ static int vdebug_poll(void *priv)
 	} else if (vdc.targ_time > (vdc.poll_min + vdc.poll_max) / 2)
 		vdc.poll_cycles /= 2;
 
-	LOG_DEBUG("poll after %ums in state %u; wait %u cycles in %ums",
+	LOG_DEBUG_IO("poll after %ums in state %u; wait %u cycles in %ums",
 		vdc.targ_time, vdc.targ_state, vdc.poll_cycles, cmdtime);
 	vdc.targ_time = 0;                 /* reset target time counter */
 
@@ -911,7 +911,7 @@ static int vdebug_scan(struct scan_command *cmd, uint8_t f_flush)
 	tms_post = tap_get_tms_path(state, cmd->end_state);
 	num_post = tap_get_tms_path_len(state, cmd->end_state);
 	num_bits = jtag_scan_size(cmd);
-	LOG_DEBUG("scan len:%d fields:%d ir/!dr:%d state cur:%x end:%x",
+	LOG_DEBUG_IO("scan len:%d fields:%d ir/!dr:%d state cur:%x end:%x",
 			  num_bits, cmd->num_fields, cmd->ir_scan, cur, cmd->end_state);
 	for (int i = 0; i < cmd->num_fields; i++) {
 		rc = vdebug_jtag_shift_tap(vdc.hsocket, pbuf, (i == 0 ? num_pre : 0),

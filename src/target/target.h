@@ -681,6 +681,11 @@ bool target_supports_gdb_query_custom(struct target *target);
 int target_gdb_query_custom(struct target *target, const char *packet, char **response_p);
 
 /**
+ * Check if target requires GDB restart packet response.
+ */
+bool target_restart_requires_response(struct target *target);
+
+/**
  * Return the highest accessible address for this target.
  */
 target_addr_t target_address_max(struct target *target);

@@ -262,6 +262,7 @@ typedef struct {
 #define OCDDCR_ENABLEOCD        (1<<0)
 #define OCDDCR_DEBUGINTERRUPT   (1<<1)
 #define OCDDCR_INTERRUPTALLCONDS    (1<<2)
+#define OCDDCR_STEPREQUEST      (1<<3)		/* NX only */
 #define OCDDCR_BREAKINEN        (1<<16)
 #define OCDDCR_BREAKOUTEN       (1<<17)
 #define OCDDCR_DEBUGSWACTIVE    (1<<20)
@@ -275,6 +276,8 @@ typedef struct {
 #define OCDDSR_EXECBUSY         (1<<2)
 #define OCDDSR_EXECOVERRUN      (1<<3)
 #define OCDDSR_STOPPED          (1<<4)
+#define OCDDSR_STOPCAUSE        (0xF<<5)	/* NX only */
+#define OCDDSR_STOPCAUSE_SHIFT  (5)			/* NX only */
 #define OCDDSR_COREWROTEDDR     (1<<10)
 #define OCDDSR_COREREADDDR      (1<<11)
 #define OCDDSR_HOSTWROTEDDR     (1<<14)
@@ -291,12 +294,24 @@ typedef struct {
 #define OCDDSR_BREAKINITI       (1<<26)
 #define OCDDSR_DBGMODPOWERON    (1U<<31)
 
+/* NX stop cause */
+#define OCDDSR_STOPCAUSE_DI     (0)		/* Debug Interrupt */
+#define OCDDSR_STOPCAUSE_SS     (1)		/* Single-step completed */
+#define OCDDSR_STOPCAUSE_IB     (2)		/* HW breakpoint (IBREAKn match) */
+#define OCDDSR_STOPCAUSE_B1     (4)		/* SW breakpoint (BREAK.1 instruction) */
+#define OCDDSR_STOPCAUSE_BN     (5)		/* SW breakpoint (BREAK.N instruction) */
+#define OCDDSR_STOPCAUSE_B      (6)		/* SW breakpoint (BREAK instruction) */
+#define OCDDSR_STOPCAUSE_DB0    (8)		/* HW watchpoint (DBREAK0 match) */
+#define OCDDSR_STOPCAUSE_DB1    (9)		/* HW watchpoint (DBREAK0 match) */
+
+/* LX stop cause */
 #define DEBUGCAUSE_IC           (1<<0)	/*ICOUNT exception */
 #define DEBUGCAUSE_IB           (1<<1)	/*IBREAK exception */
 #define DEBUGCAUSE_DB           (1<<2)	/*DBREAK exception */
 #define DEBUGCAUSE_BI           (1<<3)	/*BREAK instruction encountered */
 #define DEBUGCAUSE_BN           (1<<4)	/*BREAK.N instruction encountered */
 #define DEBUGCAUSE_DI           (1<<5)	/*Debug Interrupt */
+#define DEBUGCAUSE_VALID        (1<<31)	/*Pseudo-value to trigger reread (NX only) */
 
 #define TRAXCTRL_TREN           (1<<0)	/*Trace enable. Tracing starts on 0->1 */
 #define TRAXCTRL_TRSTP          (1<<1)	/*Trace Stop. Make 1 to stop trace. */

@@ -44,7 +44,7 @@ int xtensa_fileio_detect_proc(struct target *target)
 	struct xtensa *xtensa = target_to_xtensa(target);
 	int retval;
 
-	xtensa_reg_val_t dbg_cause = xtensa_reg_get(target, XT_REG_IDX_DEBUGCAUSE);
+	xtensa_reg_val_t dbg_cause = xtensa_cause_get(target);
 	if (((dbg_cause & (DEBUGCAUSE_BI|DEBUGCAUSE_BN)) == 0) || xtensa->halt_request) {
 		return ERROR_FAIL;
 	}

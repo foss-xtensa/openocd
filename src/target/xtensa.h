@@ -127,9 +127,9 @@
 #define XT_INS_RFDD(X) (isbe(X) ? 0x010e1f << 8 : 0xf1e010)
 
 /* Load to DDR register, increase addr register */
-#define XT_INS_LDDR32P(X,S) (isbe(X) ? (0x0E0700|(S<<12)) << 8 : (0x0070E0|(S<<8)))
+#define XT_INS_LDDR32P(X,S) (isbe(X) ? (0x0E0700|((S)<<12)) << 8 : (0x0070E0|((S)<<8)))
 /* Store from DDR register, increase addr register */
-#define XT_INS_SDDR32P(X,S) (isbe(X) ? (0x0F0700|(S<<12)) << 8 : (0x0070F0|(S<<8)))
+#define XT_INS_SDDR32P(X,S) (isbe(X) ? (0x0F0700|((S)<<12)) << 8 : (0x0070F0|((S)<<8)))
 
 /* Load 32-bit Indirect from A(S)+4*IMM8 to A(T) */
 #define XT_INS_L32I(X,S,T,IMM8)  _XT_INS_FORMAT_RRI8(X,0x002002,0,S,T,IMM8)
@@ -150,6 +150,10 @@
 #define XT_INS_DHWBI(X,S,IMM8) _XT_INS_FORMAT_RRI8(X,0x007052,0,S,0,IMM8)
 #define XT_INS_DHWB(X,S,IMM8) _XT_INS_FORMAT_RRI8(X,0x007042,0,S,0,IMM8)
 #define XT_INS_ISYNC(X) (isbe(X) ? 0x000200 << 8 : 0x002000)
+
+/* Control Instructions */
+#define XT_INS_JX(X,S) (isbe(X) ? (0x050000|((S)<<12)) : (0x0000a0|((S)<<8)))
+#define XT_INS_CALL0(X,IMM18) (isbe(X) ? (0x500000|((IMM18)&0x3ffff)) : (0x000005|(((IMM18)&0x3ffff)<<6)))
 
 /* Read Special Register */
 #define XT_INS_RSR(X,SR,T) _XT_INS_FORMAT_RSR(X,0x030000,SR,T)
@@ -175,12 +179,38 @@
 				(0x0FD2 | (((IMM4)&0xF)<<12)) : \
 				(0xF02D | (((IMM4)&0xF)<<8)))
 
+/* PS register bits (LX) */
 #define XT_PS_RING(_v_)         ((uint32_t)((_v_) & 0x3) << 6)
 #define XT_PS_RING_MSK          (0x3 << 6)
 #define XT_PS_RING_GET(_v_)     (((_v_) >> 6) & 0x3)
 #define XT_PS_CALLINC_MSK       (0x3 << 16)
 #define XT_PS_OWB_MSK           (0xF << 8)
 #define XT_PS_WOE_MSK           (1 << 18)
+
+/* PS register bits (NX) */
+#define XT_PS_DIEXC_MSK         (1 << 2)
+
+/* MS register bits (NX) */
+#define XT_MS_DE_MSK            (1 << 5)
+#define XT_MS_DISPST_MSK        (0x1f)
+#define XT_MS_DISPST_DBG        (0x10)
+
+/* WB register bits (NX) */
+#define XT_WB_P_SHIFT           (0)
+#define XT_WB_P_MSK             (0x7 << XT_WB_P_SHIFT)
+#define XT_WB_C_SHIFT           (4)
+#define XT_WB_C_MSK             (0x7 << XT_WB_C_SHIFT)
+#define XT_WB_N_SHIFT           (8)
+#define XT_WB_N_MSK             (0x7 << XT_WB_N_SHIFT)
+#define XT_WB_S_SHIFT           (30)
+#define XT_WB_S_MSK             (0x3 << XT_WB_S_SHIFT)
+
+/* IBREAKC register bits (NX) */
+#define XT_IBREAKC_FB           (0x80000000)
+
+/* Definitions for imprecise exception registers (NX) */
+#define XT_IMPR_EXC_MSK         (0x00000013)
+#define XT_MESRCLR_IMPR_EXC_MSK (0x00000090)
 
 #define XT_INS_L32E(X,R,S,T) _XT_INS_FORMAT_RRI4(X,0x090000,0,R,S,T)
 #define XT_INS_S32E(X,R,S,T) _XT_INS_FORMAT_RRI4(X,0x490000,0,R,S,T)
@@ -225,6 +255,7 @@ struct xtensa_keyval_info_s {
 enum xtensa_type {
 	XT_UNDEF = 0,
 	XT_LX,
+	XT_NX,
 };
 
 struct xtensa_cache_config {
@@ -318,6 +349,17 @@ enum xtensa_stepping_isr_mode {
 	XT_STEPPING_ISR_ON,	/* interrupts are enabled during stepping */
 };
 
+typedef enum xtensa_nx_reg_idx_e {
+	XT_NX_REG_IDX_IBREAKC0 = 0,
+	XT_NX_REG_IDX_WB,
+	XT_NX_REG_IDX_MS,
+	XT_NX_REG_IDX_IEVEC,		/* IEVEC, IEEXTERN, and MESR must be contiguous */
+	XT_NX_REG_IDX_IEEXTERN,
+	XT_NX_REG_IDX_MESR,
+	XT_NX_REG_IDX_MESRCLR,
+	XT_NX_REG_IDX_NUM
+} xtensa_nx_reg_idx;
+
 struct xtensa_sw_breakpoint {
 	struct breakpoint *oocd_bp;
 	/* original insn */
@@ -341,6 +383,7 @@ struct xtensa {
 	struct target *target;
 	bool reset_asserted;
 	enum xtensa_stepping_isr_mode stepping_isr_mode;
+	bool resp_gdb_restart_pkt;
 	struct breakpoint **hw_brps;
 	struct watchpoint **hw_wps;
 	struct xtensa_sw_breakpoint *sw_brps;
@@ -354,6 +397,8 @@ struct xtensa {
 	uint8_t come_online_probes_num;
 	bool proc_syscall;
 	bool halt_request;
+	uint32_t nx_stop_cause;
+	uint32_t nx_reg_idx[XT_NX_REG_IDX_NUM];
 	struct xtensa_keyval_info_s scratch_ars[XT_AR_SCRATCH_NUM];
 };
 
@@ -486,8 +531,12 @@ int xtensa_get_gdb_reg_list(struct target *target,
 	struct reg **reg_list[],
 	int *reg_list_size,
 	enum target_register_class reg_class);
+xtensa_reg_val_t xtensa_cause_get(struct target *target);
+void xtensa_cause_clear(struct target *target);
+void xtensa_cause_reset(struct target *target);
 int xtensa_poll(struct target *target);
 void xtensa_on_poll(struct target *target);
+bool xtensa_restart_resp_req(struct target *target);
 int xtensa_halt(struct target *target);
 int xtensa_resume(struct target *target,
 	int current,
