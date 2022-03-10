@@ -1,0 +1,29 @@
+#!/bin/sh
+# Run the openocd bootstrap/configure/build process
+
+# Abort execution on error
+set -e
+
+if [ $# -eq 0 ]; then
+    echo "USAGE: $0 <install-path>"
+    exit 1
+fi
+if [ -f $1 ] || [ -d $1 ]; then
+	echo "ERROR: $1 exists; remove or specify a new location"
+	exit 1
+fi
+
+export myprefix=$1
+echo "Installing in $myprefix"
+
+./bootstrap nosubmodule
+dos2unix -f ./configure
+dos2unix -f ./src/jtag/drivers/libjaylink/configure
+rm -f src/jtag/minidriver_imp.h
+./configure -C --prefix=$myprefix --enable-ftdi --disable-werror --program-prefix=xt-
+cd src/jtag/drivers/libjaylink
+./autogen.sh
+/bin/sh ./configure.gnu --disable-option-checking --prefix=$myprefix --enable-ftdi --disable-werror --cache-file=../../../../config.cache --srcdir=.
+cd ../../../../
+make -j4 && make -j4 install
+

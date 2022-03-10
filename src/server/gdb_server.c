@@ -1266,7 +1266,11 @@ static int gdb_set_registers_packet(struct connection *connection,
 	packet_p = packet;
 	for (i = 0; i < reg_list_size; i++) {
 		uint8_t *bin_buf;
-		int chars = (DIV_ROUND_UP(reg_list[i]->size, 8) * 2);
+        int chars;
+
+		if (reg_list[i] == NULL || reg_list[i]->exist == false)
+            continue;
+		chars = (DIV_ROUND_UP(reg_list[i]->size, 8) * 2);
 
 		if (packet_p + chars > packet + packet_size)
 			LOG_ERROR("BUG: register packet is too small for registers");
@@ -1318,8 +1322,8 @@ static int gdb_get_register_packet(struct connection *connection,
 	if (retval != ERROR_OK)
 		return gdb_error(connection, retval);
 
-	if (reg_list_size <= reg_num) {
-		LOG_ERROR("gdb requested a non-existing register");
+	if ((reg_list_size <= reg_num) || (!reg_list[reg_num])) {
+		LOG_ERROR("gdb requested a non-existing register 0x%x", reg_num);
 		return ERROR_SERVER_REMOTE_CLOSED;
 	}
 
@@ -1380,8 +1384,8 @@ static int gdb_set_register_packet(struct connection *connection,
 		return gdb_error(connection, retval);
 	}
 
-	if (reg_list_size <= reg_num) {
-		LOG_ERROR("gdb requested a non-existing register");
+	if ((reg_list_size <= reg_num) || (!reg_list[reg_num])) {
+		LOG_ERROR("gdb requested a non-existing register %d", reg_num);
 		free(bin_buf);
 		free(reg_list);
 		return ERROR_SERVER_REMOTE_CLOSED;
@@ -1700,7 +1704,10 @@ static int gdb_breakpoint_watchpoint_packet(struct connection *connection,
 		case 1:
 			if (packet[0] == 'Z') {
 				retval = breakpoint_add(target, address, size, bp_type);
-				if (retval != ERROR_OK) {
+				if (retval == ERROR_TARGET_INVALID) {
+					/* SW breakpoints not supported */
+					gdb_put_packet(connection, "", 0);
+				} else if (retval != ERROR_OK) {
 					retval = gdb_error(connection, retval);
 					if (retval != ERROR_OK)
 						return retval;
@@ -2710,6 +2717,11 @@ static int gdb_query_packet(struct connection *connection,
 		gdb_connection->noack_mode = 1;
 		gdb_put_packet(connection, "OK", 2);
 		return ERROR_OK;
+	} else if (target_supports_gdb_query_custom(target)) {
+		char *buffer = NULL;
+		int ret = target_gdb_query_custom(target, packet, &buffer);
+		gdb_put_packet(connection, buffer, strlen(buffer));
+		return ret;
 	}
 
 	gdb_put_packet(connection, "", 0);
@@ -3414,6 +3426,7 @@ static int gdb_input_inner(struct connection *connection)
 				case 'R':
 					/* handle extended restart packet */
 					gdb_restart_inferior(connection, packet, packet_size);
+					gdb_put_packet(connection, "OK", 0);	// Xtensa: older xt-gdb versions don't respond to restart packets
 					break;
 
 				case 'j':

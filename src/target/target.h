@@ -671,6 +671,16 @@ int target_get_gdb_fileio_info(struct target *target, struct gdb_fileio_info *fi
 int target_gdb_fileio_end(struct target *target, int retcode, int fileio_errno, bool ctrl_c);
 
 /**
+ * Check if target handles custom GDB query packets.
+ *
+ * Some targets do not implement the necessary code required by GDB.
+ */
+bool target_supports_gdb_query_custom(struct target *target);
+
+/** Process GDB target-specific query packet if supported. */
+int target_gdb_query_custom(struct target *target, const char *packet, char **response_p);
+
+/**
  * Return the highest accessible address for this target.
  */
 target_addr_t target_address_max(struct target *target);

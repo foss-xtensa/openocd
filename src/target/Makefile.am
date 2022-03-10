@@ -23,6 +23,7 @@ noinst_LTLIBRARIES += %D%/libtarget.la
 	$(MIPS32_SRC) \
 	$(NDS32_SRC) \
 	$(STM8_SRC) \
+	$(XTENSA_SRC) \
 	$(INTEL_IA32_SRC) \
 	$(ESIRISC_SRC) \
         $(ARC_SRC) \
@@ -151,6 +152,12 @@ NDS32_SRC = \
 STM8_SRC = \
 	%D%/stm8.c
 
+XTENSA_SRC= \
+	%D%/xtensa.c \
+	%D%/xtensa_chip.c \
+	%D%/xtensa_debug_module.c \
+	%D%/xtensa_fileio.c
+
 INTEL_IA32_SRC = \
 	%D%/quark_x10xx.c \
 	%D%/quark_d20xx.c \
@@ -253,6 +260,11 @@ ARC_SRC = \
 	%D%/lakemont.h \
 	%D%/x86_32_common.h \
 	%D%/arm_cti.h \
+	%D%/xtensa.h \
+	%D%/xtensa_chip.h \
+	%D%/xtensa_debug_module.h \
+	%D%/xtensa_fileio.h \
+	%D%/xtensa_regs.h \
 	%D%/esirisc.h \
 	%D%/esirisc_jtag.h \
 	%D%/esirisc_regs.h \

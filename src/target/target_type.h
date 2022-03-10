@@ -287,6 +287,10 @@ struct target_type {
 	 */
 	int (*gdb_fileio_end)(struct target *target, int retcode, int fileio_errno, bool ctrl_c);
 
+	/* parse target-specific GDB query commands
+	 */
+	int (*gdb_query_custom)(struct target *target, const char *packet, char **response_p);
+
 	/* do target profiling
 	 */
 	int (*profiling)(struct target *target, uint32_t *samples,
