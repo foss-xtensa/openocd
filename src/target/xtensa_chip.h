@@ -19,11 +19,13 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.           *
  ***************************************************************************/
 
-#ifndef XTENSA_CHIP_H
-#define XTENSA_CHIP_H
+#ifndef OPENOCD_TARGET_XTENSA_CHIP_H
+#define OPENOCD_TARGET_XTENSA_CHIP_H
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 #include "target.h"
-#include "command.h"
 #include "xtensa.h"
 #include "xtensa_debug_module.h"
 
@@ -111,4 +113,4 @@ void xtensa_chip_on_reset(struct target *target);
 bool xtensa_chip_on_halt(struct target *target);
 void xtensa_chip_on_poll(struct target *target);
 
-#endif	/* XTENSA_CHIP_H */
+#endif	/* OPENOCD_TARGET_XTENSA_CHIP_H */

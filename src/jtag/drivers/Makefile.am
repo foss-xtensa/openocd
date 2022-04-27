@@ -19,18 +19,11 @@ DRIVERFILES =
 
 # Standard Driver: common files
 DRIVERFILES += %D%/driver.c
-DRIVERFILES += %D%/jtag_usb_common.c
 
 if USE_LIBUSB1
 DRIVERFILES += %D%/libusb_helper.c
 %C%_libocdjtagdrivers_la_CPPFLAGS += $(LIBUSB1_CFLAGS)
 %C%_libocdjtagdrivers_la_LIBADD += $(LIBUSB1_LIBS)
-endif
-
-if USE_LIBUSB0
-DRIVERFILES += %D%/usb_common.c
-%C%_libocdjtagdrivers_la_CPPFLAGS += $(LIBUSB0_CFLAGS)
-%C%_libocdjtagdrivers_la_LIBADD += $(LIBUSB0_LIBS)
 endif
 
 if USE_LIBFTDI
@@ -196,7 +189,6 @@ endif
 DRIVERHEADERS = \
 	%D%/bitbang.h \
 	%D%/bitq.h \
-	%D%/jtag_usb_common.h \
 	%D%/libftdi_helper.h \
 	%D%/libusb_helper.h \
 	%D%/cmsis_dap.h \
@@ -206,7 +198,6 @@ DRIVERHEADERS = \
 	%D%/rlink_dtc_cmd.h \
 	%D%/rlink_ep1_cmd.h \
 	%D%/rlink_st7.h \
-	%D%/usb_common.h \
 	%D%/versaloon/usbtoxxx/usbtoxxx.h \
 	%D%/versaloon/usbtoxxx/usbtoxxx_internal.h \
 	%D%/versaloon/versaloon.h \

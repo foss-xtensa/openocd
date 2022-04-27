@@ -25,10 +25,11 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.           *
  ***************************************************************************/
 
+#include <helper/time_support.h>
+
 #include "xtensa_chip.h"
 #include "xtensa.h"
 #include "register.h"
-#include "time_support.h"
 
 #define XT_WATCHPOINTS_NUM_MAX  2
 

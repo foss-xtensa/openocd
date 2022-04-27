@@ -22,8 +22,10 @@
 #ifndef OPENOCD_XTENSA_FILEIO_H
 #define OPENOCD_XTENSA_FILEIO_H
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 #include "target.h"
-#include "command.h"
 #include "xtensa.h"
 
 #define XTENSA_SYSCALL_OP_REG       XT_REG_IDX_A2
