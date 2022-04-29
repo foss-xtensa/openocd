@@ -1,6 +1,6 @@
 /***************************************************************************
  *   Xtensa Target Support for OpenOCD                                     *
- *   Copyright (C) 2020-2021 Cadence Design Systems, Inc.                  *
+ *   Copyright (C) 2020-2022 Cadence Design Systems, Inc.                  *
  *   Author: Ian Thompson <ianst@cadence.com>                              *
  *                                                                         *
  *   Copyright (C) 2016-2019 Espressif Systems Ltd.                        *
@@ -18,14 +18,10 @@
  *   GNU General Public License for more details.                          *
  *                                                                         *
  *   You should have received a copy of the GNU General Public License     *
- *   along with this program; if not, write to the                         *
- *   Free Software Foundation, Inc.,                                       *
- *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.           *
+ *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  ***************************************************************************/
 
-/*Xtensa register list taken from gdb/gdb/xtensa-config.c
- *gdb wants the registers in the order gdb/regformats/reg-xtensa.dat describes
- *them. The enum and xtensa_regs structs should be in the same order. */
+#include <target/register.h>
 
 enum xtensa_reg_id {
 	XT_REG_IDX_PC = 0,

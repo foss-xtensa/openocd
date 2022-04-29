@@ -152,6 +152,11 @@ XTENSA_SRC= \
 	%D%/xtensa_debug_module.c \
 	%D%/xtensa_fileio.c
 
+ESP32_SRC= \
+	%D%/esp32s2.c \
+	%D%/esp.c \
+	%D%/esp_xtensa.c
+
 INTEL_IA32_SRC = \
 	%D%/quark_x10xx.c \
 	%D%/quark_d20xx.c \
@@ -260,6 +265,9 @@ ARC_SRC = \
 	%D%/xtensa_debug_module.h \
 	%D%/xtensa_fileio.h \
 	%D%/xtensa_regs.h \
+	%D%/esp_xtensa.h \
+	%D%/esp.h \
+	%D%/esp32s2.h \
 	%D%/esirisc.h \
 	%D%/esirisc_jtag.h \
 	%D%/esirisc_regs.h \

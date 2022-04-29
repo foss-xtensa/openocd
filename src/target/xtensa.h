@@ -1,6 +1,6 @@
 /***************************************************************************
  *   Xtensa Target Support for OpenOCD                                     *
- *   Copyright (C) 2020-2021 Cadence Design Systems, Inc.                  *
+ *   Copyright (C) 2020-2022 Cadence Design Systems, Inc.                  *
  *   Author: Ian Thompson <ianst@cadence.com>                              *
  *                                                                         *
  *   Copyright (C) 2019 Espressif Systems Ltd.                             *
@@ -17,9 +17,7 @@
  *   GNU General Public License for more details.                          *
  *                                                                         *
  *   You should have received a copy of the GNU General Public License     *
- *   along with this program; if not, write to the                         *
- *   Free Software Foundation, Inc.,                                       *
- *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.           *
+ *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  ***************************************************************************/
 
 #ifndef OPENOCD_TARGET_XTENSA_H
@@ -346,7 +344,7 @@ typedef uint32_t xtensa_insn_t;
 
 enum xtensa_stepping_isr_mode {
 	XT_STEPPING_ISR_OFF,	/* interrupts are disabled during stepping */
-	XT_STEPPING_ISR_ON,	/* interrupts are enabled during stepping */
+	XT_STEPPING_ISR_ON,		/* interrupts are enabled during stepping */
 };
 
 typedef enum xtensa_nx_reg_idx_e {
@@ -378,6 +376,9 @@ struct xtensa {
 	struct reg_cache *core_cache;
 	uint32_t total_regs_num;
 	uint32_t core_regs_num;
+	/* An array of pointers to buffers to backup registers' values while algo is run on target.
+	 * Size is 'regs_num'. */
+	void **algo_context_backup;
 	uint32_t eps_dbglevel_idx;
 	uint32_t dbregs_num;
 	struct target *target;
@@ -390,10 +391,15 @@ struct xtensa {
 	bool trace_active;
 	bool permissive_mode;
 	bool suppress_dsr_errors;
+	uint32_t smp_break;
 	uint32_t spill_loc;
 	uint32_t spill_bytes;
 	uint8_t *spill_buf;
 	int8_t probe_lsddr32p;
+	/* Sometimes debug module's 'powered' bit is cleared after reset, but get set after some
+	 * time.This is the number of polling periods after which core is considered to be powered
+	 * off (marked as unexamined) if the bit retains to be cleared (e.g. if core is disabled by
+	 * SW running on target).*/
 	uint8_t come_online_probes_num;
 	bool proc_syscall;
 	bool halt_request;
@@ -474,6 +480,7 @@ int xtensa_init_arch_info(struct target *target,
 	struct xtensa *xtensa,
 	const struct xtensa_debug_module_config *dm_cfg);
 int xtensa_target_init(struct command_context *cmd_ctx, struct target *target);
+void xtensa_target_deinit(struct target *target);
 int xtensa_build_reg_cache(struct target *target);
 
 static inline void xtensa_stepping_isr_mode_set(struct target *target,
@@ -523,9 +530,12 @@ int xtensa_core_status_check(struct target *target);
 int xtensa_examine(struct target *target);
 int xtensa_wakeup(struct target *target);
 int xtensa_smpbreak_set(struct target *target, uint32_t set);
-xtensa_reg_val_t xtensa_reg_get(struct target *target, enum xtensa_reg_id reg_id);
-void xtensa_reg_set(struct target *target, enum xtensa_reg_id reg_id, xtensa_reg_val_t value);
-void xtensa_reg_set_deep_relgen(struct target *target, enum xtensa_reg_id a_idx, xtensa_reg_val_t value);
+int xtensa_smpbreak_get(struct target *target, uint32_t *val);
+int xtensa_smpbreak_write(struct target *target, uint32_t set);
+int xtensa_smpbreak_read(struct target *target, uint32_t *val);
+uint32_t xtensa_reg_get(struct target *target, enum xtensa_reg_id reg_id);
+void xtensa_reg_set(struct target *target, enum xtensa_reg_id reg_id, uint32_t value);
+void xtensa_reg_set_deep_relgen(struct target *target, enum xtensa_reg_id a_idx, uint32_t value);
 int xtensa_fetch_all_regs(struct target *target);
 int xtensa_get_gdb_reg_list(struct target *target,
 	struct reg **reg_list[],
@@ -592,6 +602,7 @@ int xtensa_gdb_query_custom(struct target *target, const char *packet, char **re
 
 COMMAND_HELPER(xtensa_cmd_permissive_mode_do, struct xtensa *xtensa);
 COMMAND_HELPER(xtensa_cmd_mask_interrupts_do, struct xtensa *xtensa);
+COMMAND_HELPER(xtensa_cmd_smpbreak_do, struct target *target);
 COMMAND_HELPER(xtensa_cmd_perfmon_dump_do, struct xtensa *xtensa);
 COMMAND_HELPER(xtensa_cmd_perfmon_enable_do, struct xtensa *xtensa);
 COMMAND_HELPER(xtensa_cmd_tracestart_do, struct xtensa *xtensa);

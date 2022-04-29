@@ -1334,11 +1334,9 @@ static int gdb_set_registers_packet(struct connection *connection,
 	packet_p = packet;
 	for (i = 0; i < reg_list_size; i++) {
 		uint8_t *bin_buf;
-        int chars;
-
 		if (reg_list[i] == NULL || reg_list[i]->exist == false)
             continue;
-		chars = (DIV_ROUND_UP(reg_list[i]->size, 8) * 2);
+		int chars = (DIV_ROUND_UP(reg_list[i]->size, 8) * 2);
 
 		if (packet_p + chars > packet + packet_size)
 			LOG_ERROR("BUG: register packet is too small for registers");

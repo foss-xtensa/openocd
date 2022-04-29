@@ -1,6 +1,6 @@
 /***************************************************************************
  *   Xtensa Debug Module (XDM) Support for OpenOCD                         *
- *   Copyright (C) 2020-2021 Cadence Design Systems, Inc.                  *
+ *   Copyright (C) 2020-2022 Cadence Design Systems, Inc.                  *
  *   Author: Ian Thompson <ianst@cadence.com>                              *
  *                                                                         *
  *   Copyright (C) 2019 Espressif Systems Ltd.                             *
@@ -16,9 +16,7 @@
  *   GNU General Public License for more details.                          *
  *                                                                         *
  *   You should have received a copy of the GNU General Public License     *
- *   along with this program; if not, write to the                         *
- *   Free Software Foundation, Inc.,                                       *
- *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.           *
+ *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  ***************************************************************************/
 
 #include "xtensa_debug_module.h"
@@ -288,14 +286,13 @@ int xtensa_dm_trace_start(struct xtensa_debug_module *dm, struct xtensa_trace_st
 		XDMREG_TRAXCTRL,
 		TRAXCTRL_TREN |
 		((cfg->stopmask != (uint32_t)-1) ? TRAXCTRL_PCMEN : 0) | TRAXCTRL_TMEN |
-		(cfg->after_is_words ? 0 : TRAXCTRL_CNTU) | (0 << TRAXCTRL_SMPER_SHIFT) |
-		TRAXCTRL_PTOWS);
+		(cfg->after_is_words ? 0 : TRAXCTRL_CNTU) | (0 << TRAXCTRL_SMPER_SHIFT) | TRAXCTRL_PTOWS);
 	xtensa_dm_queue_tdi_idle(dm);
 	return jtag_execute_queue();
 }
 
 // TODO: Update trace/perfmon for DAP/APB access
-int xtensa_dm_trace_stop(struct xtensa_debug_module *dm)
+int xtensa_dm_trace_stop(struct xtensa_debug_module *dm, bool pto_enable)
 {
 	uint32_t traxctl;
 	struct xtensa_trace_status trace_status;
@@ -305,6 +302,9 @@ int xtensa_dm_trace_stop(struct xtensa_debug_module *dm)
 	int res = jtag_execute_queue();
 	if (res != ERROR_OK)
 		return res;
+
+	if (!pto_enable)
+		traxctl &= ~(TRAXCTRL_PTOWS | TRAXCTRL_PTOWT);
 
 	dm->dbg_ops->queue_reg_write(dm, XDMREG_TRAXCTRL, traxctl | TRAXCTRL_TRSTP);
 	xtensa_dm_queue_tdi_idle(dm);
@@ -318,7 +318,7 @@ int xtensa_dm_trace_stop(struct xtensa_debug_module *dm)
 		return res;
 
 	if (trace_status.stat & TRAXSTAT_TRACT) {
-		LOG_ERROR("Tracing is already active. Please stop it first.");
+		LOG_ERROR("Failed to stop tracing (0x%x)!", trace_status.stat);
 		return ERROR_FAIL;
 	}
 	return ERROR_OK;

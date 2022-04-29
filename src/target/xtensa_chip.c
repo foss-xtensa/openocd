@@ -226,7 +226,7 @@ static int xtensa_chip_examine(struct target *target)
 	return retval;
 }
 
-int xtensa_chip_jim_configure(struct target *target, Jim_GetOptInfo *goi)
+int xtensa_chip_jim_configure(struct target *target, struct jim_getopt_info *goi)
 {
 	static bool dap_configured = false;
 	int ret = adiv5_jim_configure(target, goi);

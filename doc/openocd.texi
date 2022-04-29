@@ -10777,6 +10777,17 @@ Systems, Inc.  See the
 @uref{https://www.cadence.com/en_US/home/tools/ip/tensilica-ip.html, Tensilica IP}
 website for additional information and documentation.
 
+OpenOCD supports generic Xtensa processor implementations which can be customized by
+providing a core-specific configuration file which describes every enabled 
+Xtensa architecture option, e.g. number of address registers, exceptions, reduced
+size instructions support, memory banks configuration etc.  OpenOCD also supports SMP
+configurations for Xtensa processors with any number of cores and allows configuring
+their debug interconnect (termed "break/stall networks"), which control how debug
+signals are distributed among cores.  Xtensa "break networks" are compatible with
+ARM's Cross Trigger Interface (CTI).  OpenOCD implements both generic Xtensa targets
+as well as several Epsressif Xtensa-based chips from the 
+@uref{https://www.espressif.com/en/products/socs, ESP32 family}.
+
 OCD sessions for Xtensa processor and DSP targets are accessed via the Xtensa
 Debug Module (XDM), which provides external connectivity either through a 
 traditional JTAG interface or an ARM DAP interface.  If used, the DAP interface
@@ -10908,10 +10919,70 @@ When enabled, respond to GDB reset command.  Provides backward-compatibility
 with older @code{xt-gdb} versions.  Will be removed.
 @end deffn
 
+
+@deffn {Command} {xtensa smpbreak} [none|breakinout|runstall] | [BreakIn] [BreakOut] [RunStallIn] [DebugModeOut]
+Configures debug signals connection ("break network") for currently selected core.
+@itemize @bullet
+@item @code{none} - Core's "break/stall network" is disconnected. Core is not affected by any debug
+signal from other cores.
+@item @code{breakinout} - Core's "break network" is fully connected (break inpts and outputs are enabled).
+Core will receive debug break signals from other cores and send such signals to them. For example when another core
+is stopped due to breakpoint hit this core will be stopped too and vice versa.
+@item @code{runstall} - Core's "stall network" is fully connected (stall inputs and outputs are enabled).
+This feature is not well implemented and tested yet.
+@item @code{BreakIn} - Core's "break-in" signal is enabled.
+Core will receive debug break signals from other cores. For example when another core is
+stopped due to breakpoint hit this core will be stopped too.
+@item @code{BreakOut} - Core's "break-out" signal is enabled.
+Core will send debug break signal to other cores. For example when this core is
+stopped due to breakpoint hit other cores with enabled break-in signals will be stopped too.
+@item @code{RunStallIn} - Core's "runstall-in" signal is enabled.
+This feature is not well implemented and tested yet.
+@item @code{DebugModeOut} - Core's "debugmode-out" signal is enabled.
+This feature is not well implemented and tested yet.
+@end itemize
+@end deffn
+
+@subsection Xtensa Performance Monitor Configuration
+
+@deffn {Command} {xtensa perfmon_enable} <counter_id> <select> [mask] [kernelcnt] [tracelevel]
+Enable and start performance counter.
+@itemize @bullet
+@item @code{counter_id} - Counter ID (0-1).
+@item @code{select} - Selects perfomance metric to be counted by the counter,
+e.g. 0 - CPU cycles, 2 - retired instructions.
+@item @code{mask} - Selects input subsets to be counted (counter will
+increment only once even if more than one condition corresponding to a mask bit occurs).
+@item @code{kernelcnt} - 0 - count events with "CINTLEVEL <= tracelevel",
+1 - count events with "CINTLEVEL > tracelevel".
+@item @code{tracelevel} - Compares this value to "CINTLEVEL" when deciding
+whether to count.
+@end itemize
+@end deffn
+
+@deffn {Command} {xtensa perfmon_dump} (counter_id)
+Dump performance counter value. If no argument specified, dumps all counters.
+@end deffn
+
 @subsection Xtensa Trace Configuration
 
-Xtensa targets may be configured with support for instruction tracing. 
-However, OpenOCD does not yet support this feature.
+@deffn {Command} {xtensa tracestart} [pc <pcval>/[<maskbitcount>]] [after <n> [ins|words]]
+Set up and start a HW trace. Optionally set PC address range to trigger tracing stop when reached during program execution.
+This command also allows to specify the amount of data to capture after stop trigger activation.
+@itemize @bullet
+@item @code{pcval} - PC value which will trigger trace data collection stop.
+@item @code{maskbitcount} - PC value mask.
+@item @code{n} - Maximum number of instructions/words to capture after trace stop trigger.
+@end itemize
+@end deffn
+
+@deffn {Command} {xtensa tracestop}
+Stop current trace as started by the tracestart command.
+@end deffn
+
+@deffn {Command} {xtensa tracedump} <outfile>
+Dump trace memory to a file.
+@end deffn
 
 @anchor{softwaredebugmessagesandtracing}
 @section Software Debug Messages and Tracing
