@@ -27,16 +27,6 @@
 #define ESP32_S2_IROM_LOW   0x40080000
 #define ESP32_S2_IROM_HIGH  0x40800000
 
-/* Number of registers returned directly by the G command
- * Corresponds to the amount of regs listed in regformats/reg-xtensa.dat in the gdb source */
-#define ESP32_S2_NUM_REGS_G_COMMAND   72
-
-enum esp32s2_reg_id {
-	/* chip specific registers that extend ISA go after ISA-defined ones */
-	ESP32_S2_REG_IDX_GPIOOUT = XT_USR_REG_START,
-	ESP32_S2_NUM_REGS,
-};
-
 enum esp32s2_rev {
 	ESP32_S2_REV_UNKNOWN = -1,
 	ESP32_S2_REV_BETA,
