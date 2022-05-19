@@ -1,6 +1,7 @@
 /***************************************************************************
- *   ESP common definitions for OpenOCD                                    *
- *   Copyright (C) 2020 Espressif Systems Ltd.                             *
+ *   ESP32-S2 target for OpenOCD                                           *
+ *   Copyright (C) 2019 Espressif Systems Ltd.                             *
+ *   Author: Alexey Gerenkov <alexey@espressif.com>                        *
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *
@@ -16,9 +17,14 @@
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  ***************************************************************************/
 
-#ifndef _ESP_H
-#define _ESP_H
+#ifndef OPENOCD_TARGET_ESP32S2_H
+#define OPENOCD_TARGET_ESP32S2_H
 
-int esp_common_handle_gdb_detach(struct target *target);
+#include <target/xtensa/xtensa_regs.h>
 
-#endif	/* _ESP_H */
+#define ESP32_S2_DROM_LOW   0x3f000000
+#define ESP32_S2_DROM_HIGH  0x3ff80000
+#define ESP32_S2_IROM_LOW   0x40080000
+#define ESP32_S2_IROM_HIGH  0x40800000
+
+#endif	/* OPENOCD_TARGET_ESP32S2_H */

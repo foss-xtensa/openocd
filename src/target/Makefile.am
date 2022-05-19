@@ -1,5 +1,7 @@
 %C%_libtarget_la_LIBADD = %D%/openrisc/libopenrisc.la \
-	%D%/riscv/libriscv.la
+	%D%/riscv/libriscv.la \
+	%D%/xtensa/libxtensa.la \
+	%D%/espressif/libespressif.la
 
 %C%_libtarget_la_CPPFLAGS = $(AM_CPPFLAGS)
 
@@ -17,8 +19,6 @@ noinst_LTLIBRARIES += %D%/libtarget.la
 	$(MIPS32_SRC) \
 	$(NDS32_SRC) \
 	$(STM8_SRC) \
-	$(XTENSA_SRC) \
-	$(ESP32_SRC) \
 	$(INTEL_IA32_SRC) \
 	$(ESIRISC_SRC) \
         $(ARC_SRC) \
@@ -147,17 +147,6 @@ NDS32_SRC = \
 STM8_SRC = \
 	%D%/stm8.c
 
-XTENSA_SRC= \
-	%D%/xtensa.c \
-	%D%/xtensa_chip.c \
-	%D%/xtensa_debug_module.c \
-	%D%/xtensa_fileio.c
-
-ESP32_SRC= \
-	%D%/esp32s2.c \
-	%D%/esp.c \
-	%D%/esp_xtensa.c
-
 INTEL_IA32_SRC = \
 	%D%/quark_x10xx.c \
 	%D%/quark_d20xx.c \
@@ -261,14 +250,6 @@ ARC_SRC = \
 	%D%/lakemont.h \
 	%D%/x86_32_common.h \
 	%D%/arm_cti.h \
-	%D%/xtensa.h \
-	%D%/xtensa_chip.h \
-	%D%/xtensa_debug_module.h \
-	%D%/xtensa_fileio.h \
-	%D%/xtensa_regs.h \
-	%D%/esp_xtensa.h \
-	%D%/esp.h \
-	%D%/esp32s2.h \
 	%D%/esirisc.h \
 	%D%/esirisc_jtag.h \
 	%D%/esirisc_regs.h \
@@ -281,3 +262,5 @@ ARC_SRC = \
 
 include %D%/openrisc/Makefile.am
 include %D%/riscv/Makefile.am
+include %D%/xtensa/Makefile.am
+include %D%/espressif/Makefile.am

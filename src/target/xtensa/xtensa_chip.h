@@ -1,6 +1,6 @@
 /***************************************************************************
  *   Xtensa Chip-level Target Support for OpenOCD                          *
- *   Copyright (C) 2020-2021 Cadence Design Systems, Inc.                  *
+ *   Copyright (C) 2020-2022 Cadence Design Systems, Inc.                  *
  *   Author: Ian Thompson <ianst@cadence.com>                              *
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
@@ -25,62 +25,9 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
-#include "target.h"
+#include <target/target.h>
 #include "xtensa.h"
 #include "xtensa_debug_module.h"
-
-#if 0 
-
-/**
- * Debug stubs table entries IDs
- *
- * @note Must be in sync with TBD-IDF version
- */
-enum TBD_dbg_stub_id {
-	TBD_DBG_STUB_TABLE_START,
-	TBD_DBG_STUB_DESC = TBD_DBG_STUB_TABLE_START,	/*< Stubs descriptor ID */
-	TBD_DBG_STUB_ENTRY_FIRST,
-	TBD_DBG_STUB_ENTRY_GCOV = TBD_DBG_STUB_ENTRY_FIRST,	/*< GCOV stub ID */
-	/* add new stub entries here */
-	TBD_DBG_STUB_ENTRY_MAX,
-};
-
-/**
- * Debug stubs descriptor. ID: TBD_DBG_STUB_DESC
- *
- * @note Must be in sync with TBD-IDF version
- */
-struct TBD_dbg_stubs_desc {
-	/** Address of pre-compiled target buffer for stub trampoline. The size of buffer the is
-	 * TBD_DBG_STUBS_CODE_BUF_SIZE. */
-	uint32_t tramp_addr;
-	/** Pre-compiled target buffer's addr for stack. The size of the buffer is TBD_DBG_STUBS_STACK_MIN_SIZE.
-	    Target has the buffer which is used for the stack of onboard algorithms.
-	If stack size required by algorithm exceeds TBD_DBG_STUBS_STACK_MIN_SIZE,
-	it should be allocated using onboard function pointed by 'data_alloc' and
-	freed by 'data_free'. They fit to the minimal stack. See below. */
-	uint32_t min_stack_addr;
-	/** Address of malloc-like function to allocate buffer on target. */
-	uint32_t data_alloc;
-	/** Address of free-like function to free buffer allocated with data_alloc. */
-	uint32_t data_free;
-};
-
-/**
- * Debug stubs info.
- */
-struct TBD_dbg_stubs {
-	/** Address. */
-	uint32_t base;
-	/** Table contents. */
-	uint32_t entries[TBD_DBG_STUB_ENTRY_MAX];
-	/** Number of table entries. */
-	uint32_t entries_count;
-	/** Debug stubs decsriptor. */
-	struct TBD_dbg_stubs_desc desc;
-};
-
-#endif
 
 /* 0 - don't care, 1 - TMS low, 2 - TMS high */
 enum flash_bootstrap {
@@ -92,7 +39,7 @@ enum flash_bootstrap {
 struct xtensa_chip_common {
 	struct xtensa xtensa;
 
-    /* TODO: remove following fields
+	/* TODO: remove following fields
 	 * struct TBD_dbg_stubs dbg_stubs;
 	 */
 	enum flash_bootstrap flash_bootstrap;

@@ -1,6 +1,6 @@
 /***************************************************************************
  *   Xtensa Chip-level Target Support for OpenOCD                          *
- *   Copyright (C) 2020-2021 Cadence Design Systems, Inc.                  *
+ *   Copyright (C) 2020-2022 Cadence Design Systems, Inc.                  *
  *   Author: Ian Thompson <ianst@cadence.com>                              *
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
@@ -23,11 +23,11 @@
 #include "config.h"
 #endif
 
-#include "target.h"
-#include "target_type.h"
-#include "arm_adi_v5.h"
 #include "assert.h"
-#include "rtos/rtos.h"
+#include <target/target.h>
+#include <target/target_type.h>
+#include <target/arm_adi_v5.h>
+#include <rtos/rtos.h>
 #include "xtensa_chip.h"
 #include "xtensa_fileio.h"
 
@@ -191,10 +191,10 @@ static int xtensa_chip_target_create(struct target *target, Jim_Interp *interp)
 	if (adiv5_verify_config(pc) == ERROR_OK) {
 		xtensa_chip_dm_cfg.dap = pc->dap;
 		xtensa_chip_dm_cfg.debug_apsel = pc->ap_num;
-		LOG_DEBUG("DAP: ap_num %d DAP %p\n", pc->ap_num, pc->dap);
+		LOG_DEBUG("DAP: ap_num %d DAP %p", pc->ap_num, pc->dap);
 	} else {
 		xtensa_chip_dm_cfg.tap = target->tap;
-		LOG_DEBUG("JTAG: %s:%s pos %d\n", target->tap->chip, target->tap->tapname, target->tap->abs_chain_position);
+		LOG_DEBUG("JTAG: %s:%s pos %d", target->tap->chip, target->tap->tapname, target->tap->abs_chain_position);
 	}
 
 	struct xtensa_chip_common *xtensa_chip = calloc(1, sizeof(struct xtensa_chip_common));
@@ -254,6 +254,7 @@ struct target_type xtensa_chip_target = {
 
 	.assert_reset = xtensa_assert_reset,
 	.deassert_reset = xtensa_deassert_reset,
+    .soft_reset_halt = xtensa_soft_reset_halt,
 
 	.virt2phys = xtensa_chip_virt2phys,
 	.mmu = xtensa_mmu_is_enabled,
@@ -284,7 +285,4 @@ struct target_type xtensa_chip_target = {
 
 	.get_gdb_fileio_info = xtensa_get_gdb_fileio_info,
 	.gdb_fileio_end = xtensa_gdb_fileio_end,
-
-    // Xtensa: older xt-gdb versions don't respond to restart packets
-    .gdb_restart_resp_req = xtensa_restart_resp_req,
 };

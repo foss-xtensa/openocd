@@ -1,6 +1,6 @@
 /***************************************************************************
  *   Xtensa Target File-I/O Support for OpenOCD                            *
- *   Copyright (C) 2020-2021 Cadence Design Systems, Inc.                  *
+ *   Copyright (C) 2020-2022 Cadence Design Systems, Inc.                  *
  *   Author: Ian Thompson <ianst@cadence.com>                              *
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
@@ -19,13 +19,13 @@
  *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.           *
  ***************************************************************************/
 
-#ifndef OPENOCD_XTENSA_FILEIO_H
-#define OPENOCD_XTENSA_FILEIO_H
+#ifndef OPENOCD_TARGET_XTENSA_FILEIO_H
+#define OPENOCD_TARGET_XTENSA_FILEIO_H
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
-#include "target.h"
+#include <target/target.h>
 #include "xtensa.h"
 
 #define XTENSA_SYSCALL_OP_REG       XT_REG_IDX_A2
@@ -50,4 +50,4 @@ int xtensa_fileio_detect_proc(struct target *target);
 int xtensa_get_gdb_fileio_info(struct target *target, struct gdb_fileio_info *fileio_info);
 int xtensa_gdb_fileio_end(struct target *target, int retcode, int fileio_errno, bool ctrl_c);
 
-#endif	/* OPENOCD_XTENSA_FILEIO_H */
+#endif	/* OPENOCD_TARGET_XTENSA_FILEIO_H */

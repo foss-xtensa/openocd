@@ -10839,12 +10839,12 @@ NXP}.
 
 @subsection Xtensa Configuration Commands
 
-@deffn Command {xtensa xtdef} (@option{LX}|@option{NX})
+@deffn {Command} {xtensa xtdef} (@option{LX}|@option{NX})
 Configure the Xtensa target architecture.  Currently, Xtensa support is limited
 to LX6, LX7, and NX cores.
 @end deffn
 
-@deffn Command {xtensa xtopt} option value
+@deffn {Command} {xtensa xtopt} option value
 Configure Xtensa target options that are relevant to the debug subsystem.
 @var{option} is one of: @option{bigendian}, @option{arnum}, @option{windowed}, 
 @option{cpenable}, @option{exceptions}, @option{intnum}, @option{hipriints}, 
@@ -10856,35 +10856,43 @@ NOTE: Some options are specific to Xtensa LX or Xtensa NX architecture, while
 others may be common to both but have different valid ranges.
 @end deffn
 
-@deffn Command {xtensa xtmem} (@option{iram}|@option{dram}|@option{sram}|@option{irom}|@option{drom}|@option{srom}) baseaddr bytes
+@deffn {Command} {xtensa xtmem} (@option{iram}|@option{dram}|@option{sram}|@option{irom}|@option{drom}|@option{srom}) baseaddr bytes
 Configure Xtensa target memory.  Memory type determines access rights, 
 where RAMs are read/write while ROMs are read-only.  @var{baseaddr} and
 @var{bytes} are both integers, typically hexadecimal and decimal, respectively.
 @end deffn
 
-@deffn Command {xtensa xtmem} (@option{icache}|@option{dcache}) linebytes cachebytes ways [writeback]
+@deffn {Command} {xtensa xtmem} (@option{icache}|@option{dcache}) linebytes cachebytes ways [writeback]
 Configure Xtensa processor cache.  All parameters are required except for
 the optional @option{writeback} parameter; all are integers.
 @end deffn
 
-@deffn Command {xtensa xtmpu} numfgseg minsegsz lockable execonly
+@deffn {Command} {xtensa xtmpu} numfgseg minsegsz lockable execonly
 Configure an Xtensa Memory Protection Unit (MPU).  MPUs can restrict access
 and/or control cacheability of specific address ranges, but are lighter-weight
 than a full traditional MMU.  All parameters are required; all are integers.
 @end deffn
 
-@deffn Command {xtensa xtmmu} numirefillentries numdrefillentries
+@deffn {Command} {xtensa xtmmu} numirefillentries numdrefillentries
 (Xtensa-LX only) Configure an Xtensa Memory Management Unit (MMU).  Both 
 parameters are required; both are integers.
 @end deffn
 
-@deffn Command {xtensa xtregs} numregs
+@deffn {Command} {xtensa xtregs} numregs
 Configure the total number of registers for the Xtensa core.  Configuration
 logic expects to subsequently process this number of @code{xtensa xtreg} 
 definitions.  @var{numregs} is an integer.
 @end deffn
 
-@deffn Command {xtensa xtreg} name offset
+@deffn {Command} {xtensa xtregfmt} (@option{sparse}|@option{contiguous}) [general]
+Configure the type of register map used by GDB to access the Xtensa core.  
+Generic Xtensa tools (e.g. xt-gdb) require @option{sparse} mapping (default) while 
+Espressif tools expect @option{contiguous} mapping.  Contiguous mapping takes an
+additional, optional integer parameter @option{general}, which specifies the number 
+of general registers used in handling g/G packets.
+@end deffn
+
+@deffn {Command} {xtensa xtreg} name offset
 Configure an Xtensa core register.  All core registers are 32 bits wide,
 while TIE and user registers may have variable widths.  @var{name} is a 
 character string identifier while @var{offset} is a hexadecimal integer.
@@ -10892,7 +10900,7 @@ character string identifier while @var{offset} is a hexadecimal integer.
 
 @subsection Xtensa Debug Module Configuration Commands
 
-@deffn Command {xtensa dm offset} value
+@deffn {Command} {xtensa dm offset} value
 Configure the Xtensa Debug Module (DM) to apply a fixed offset when accessing
 debug registers behind a DAP interface (typically over APB).  The offset
 value must be aligned to the size of the DM register file, typically 16KB.
@@ -10900,7 +10908,7 @@ value must be aligned to the size of the DM register file, typically 16KB.
 
 @subsection Xtensa Operation Commands
 
-@deffn Command {xtensa maskisr} (@option{on}|@option{off})
+@deffn {Command} {xtensa maskisr} (@option{on}|@option{off})
 (Xtensa-LX only) Mask or unmask Xtensa interrupts during instruction step.  
 When masked, an interrupt that occurs during a step operation is handled and 
 its ISR is executed, with the user's debug session returning after potentially 
@@ -10909,12 +10917,12 @@ in execution progressing the requested number of instructions into the relevant
 vector/ISR code.
 @end deffn
 
-@deffn Command {xtensa set_permissive} (@option{on}|@option{off})
-When enabled, attempt all Xtensa memory accesses even if a memory is 
-categorized as non-writeable.  
+@deffn {Command} {xtensa set_permissive} (0|1)
+By default accessing memory beyond defined regions is forbidden. This commnd controls memory access address check.
+When set to (1), skips access controls and address range check before read/write memory.
 @end deffn
 
-@deffn Command {xtensa reset_response} (@option{on}|@option{off})
+@deffn {Command} {xtensa reset_response} (@option{on}|@option{off})
 When enabled, respond to GDB reset command.  Provides backward-compatibility
 with older @code{xt-gdb} versions.  Will be removed.
 @end deffn
@@ -10925,7 +10933,7 @@ Configures debug signals connection ("break network") for currently selected cor
 @itemize @bullet
 @item @code{none} - Core's "break/stall network" is disconnected. Core is not affected by any debug
 signal from other cores.
-@item @code{breakinout} - Core's "break network" is fully connected (break inpts and outputs are enabled).
+@item @code{breakinout} - Core's "break network" is fully connected (break inputs and outputs are enabled).
 Core will receive debug break signals from other cores and send such signals to them. For example when another core
 is stopped due to breakpoint hit this core will be stopped too and vice versa.
 @item @code{runstall} - Core's "stall network" is fully connected (stall inputs and outputs are enabled).
@@ -10949,7 +10957,7 @@ This feature is not well implemented and tested yet.
 Enable and start performance counter.
 @itemize @bullet
 @item @code{counter_id} - Counter ID (0-1).
-@item @code{select} - Selects perfomance metric to be counted by the counter,
+@item @code{select} - Selects performance metric to be counted by the counter,
 e.g. 0 - CPU cycles, 2 - retired instructions.
 @item @code{mask} - Selects input subsets to be counted (counter will
 increment only once even if more than one condition corresponding to a mask bit occurs).

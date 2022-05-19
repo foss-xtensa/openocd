@@ -1,6 +1,6 @@
 /***************************************************************************
  *   Xtensa Target File-I/O Support for OpenOCD                            *
- *   Copyright (C) 2020-2021 Cadence Design Systems, Inc.                  *
+ *   Copyright (C) 2020-2022 Cadence Design Systems, Inc.                  *
  *   Author: Ian Thompson <ianst@cadence.com>                              *
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
@@ -16,6 +16,10 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  ***************************************************************************/
+
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
 
 #include "xtensa_chip.h"
 #include "xtensa_fileio.h"
@@ -44,13 +48,13 @@ int xtensa_fileio_detect_proc(struct target *target)
 	struct xtensa *xtensa = target_to_xtensa(target);
 	int retval;
 
-	xtensa_reg_val_t dbg_cause = xtensa_cause_get(target);
+	uint32_t dbg_cause = xtensa_cause_get(target);
 	if (((dbg_cause & (DEBUGCAUSE_BI|DEBUGCAUSE_BN)) == 0) || xtensa->halt_request) {
 		return ERROR_FAIL;
 	}
 
 	uint8_t brk_insn_buf[sizeof(uint32_t)] = {0};
-	xtensa_reg_val_t pc = xtensa_reg_get(target, XT_REG_IDX_PC);
+	uint32_t pc = xtensa_reg_get(target, XT_REG_IDX_PC);
 	retval = target_read_memory(target,
 		pc,
 		XTENSA_SYSCALL_SZ,
@@ -82,11 +86,11 @@ int xtensa_get_gdb_fileio_info(struct target *target, struct gdb_fileio_info *fi
 		return ERROR_FAIL;
 	}
 
-	xtensa_reg_val_t syscall = xtensa_reg_get(target, XTENSA_SYSCALL_OP_REG);
-	xtensa_reg_val_t arg0 = xtensa_reg_get(target, XT_REG_IDX_A6);
-	xtensa_reg_val_t arg1 = xtensa_reg_get(target, XT_REG_IDX_A3);
-	xtensa_reg_val_t arg2 = xtensa_reg_get(target, XT_REG_IDX_A4);
-	xtensa_reg_val_t arg3 = xtensa_reg_get(target, XT_REG_IDX_A5);
+	uint32_t syscall = xtensa_reg_get(target, XTENSA_SYSCALL_OP_REG);
+	uint32_t arg0 = xtensa_reg_get(target, XT_REG_IDX_A6);
+	uint32_t arg1 = xtensa_reg_get(target, XT_REG_IDX_A3);
+	uint32_t arg2 = xtensa_reg_get(target, XT_REG_IDX_A4);
+	uint32_t arg3 = xtensa_reg_get(target, XT_REG_IDX_A5);
 	int retval = ERROR_OK;
 
 	LOG_DEBUG("File-I/O: syscall 0x%x 0x%x 0x%x 0x%x 0x%x", syscall, arg0, arg1, arg2, arg3);
@@ -188,7 +192,7 @@ int xtensa_gdb_fileio_end(struct target *target, int retcode, int fileio_errno, 
 		xtensa_reg_set_deep_relgen(target, XTENSA_SYSCALL_RETVAL_REG, retcode);
 		xtensa_reg_set_deep_relgen(target, XTENSA_SYSCALL_ERRNO_REG, fileio_errno);
 
-		xtensa_reg_val_t pc = xtensa_reg_get(target, XT_REG_IDX_PC);
+		uint32_t pc = xtensa_reg_get(target, XT_REG_IDX_PC);
 		xtensa_reg_set(target, XT_REG_IDX_PC, pc + XTENSA_SYSCALL_SZ);
 	}
 

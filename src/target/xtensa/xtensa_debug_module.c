@@ -19,6 +19,10 @@
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  ***************************************************************************/
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include "xtensa_debug_module.h"
 
 #define TAPINS_PWRCTL           0x08
@@ -45,9 +49,9 @@ static const xtensa_dm_reg_offsets xdm_regs[XDMREG_NUM] =
 static void xtensa_dm_add_set_ir(struct xtensa_debug_module *dm, uint8_t value)
 {
 	struct scan_field field;
-	uint8_t t[4];
+	uint8_t t[4] = { 0 };
 
-	memset(&field, 0, sizeof field);
+	memset(&field, 0, sizeof(field));
 	field.num_bits = dm->tap->ir_length;
 	field.out_value = t;
 	buf_set_u32(t, 0, field.num_bits, value);
@@ -62,7 +66,7 @@ static void xtensa_dm_add_dr_scan(struct xtensa_debug_module *dm,
 {
 	struct scan_field field;
 
-	memset(&field, 0, sizeof field);
+	memset(&field, 0, sizeof(field));
 	field.num_bits = len;
 	field.out_value = src;
 	field.in_value = dest;
@@ -71,6 +75,9 @@ static void xtensa_dm_add_dr_scan(struct xtensa_debug_module *dm,
 
 int xtensa_dm_init(struct xtensa_debug_module *dm, const struct xtensa_debug_module_config *cfg)
 {
+	if (!dm || !cfg)
+		return ERROR_FAIL;
+
 	dm->pwr_ops = cfg->pwr_ops;
 	dm->dbg_ops = cfg->dbg_ops;
 	dm->tap = cfg->tap;
@@ -139,24 +146,24 @@ int xtensa_dm_queue_enable(struct xtensa_debug_module *dm)
 	return dm->dbg_ops->queue_reg_write(dm, XDMREG_DCRSET, OCDDCR_ENABLEOCD);
 }
 
-int xtensa_dm_queue_reg_read(struct xtensa_debug_module *dm, xtensa_dm_reg reg, uint32_t *value)
+int xtensa_dm_queue_reg_read(struct xtensa_debug_module *dm, unsigned int reg, uint8_t *value)
 {
 	if (reg >= XDMREG_NUM) {
 		LOG_ERROR("Invalid DBG reg ID %d!", reg);
 		return ERROR_FAIL;
 	}
 	if (dm->dap) {
-		return mem_ap_read_u32(dm->debug_ap, xdm_regs[reg].apb + dm->ap_offset, value);
+		return mem_ap_read_u32(dm->debug_ap, xdm_regs[reg].apb + dm->ap_offset, (uint32_t *)value);
 	}
 	uint8_t regdata = (xdm_regs[reg].nar << 1) | 0;
 	uint8_t dummy[4] = { 0, 0, 0, 0 };
 	xtensa_dm_add_set_ir(dm, TAPINS_NARSEL);
 	xtensa_dm_add_dr_scan(dm, TAPINS_NARSEL_ADRLEN, &regdata, NULL, TAP_IDLE);
-	xtensa_dm_add_dr_scan(dm, TAPINS_NARSEL_DATALEN, dummy, (uint8_t *)value, TAP_IDLE);
+	xtensa_dm_add_dr_scan(dm, TAPINS_NARSEL_DATALEN, dummy, value, TAP_IDLE);
 	return ERROR_OK;
 }
 
-int xtensa_dm_queue_reg_write(struct xtensa_debug_module *dm, xtensa_dm_reg reg, uint32_t value)
+int xtensa_dm_queue_reg_write(struct xtensa_debug_module *dm, unsigned int reg, uint32_t value)
 {
 	if (reg >= XDMREG_NUM) {
 		LOG_ERROR("Invalid DBG reg ID %d!", reg);
@@ -173,10 +180,7 @@ int xtensa_dm_queue_reg_write(struct xtensa_debug_module *dm, xtensa_dm_reg reg,
 	return ERROR_OK;
 }
 
-int xtensa_dm_queue_pwr_reg_read(struct xtensa_debug_module *dm,
-	xtensa_dm_pwr_reg reg,
-	uint32_t *data,
-	uint32_t clear)
+int xtensa_dm_queue_pwr_reg_read(struct xtensa_debug_module *dm, unsigned int reg, uint8_t *data, uint32_t clear)
 {
 	if (reg >= XDMREG_PWRNUM) {
 		LOG_ERROR("Invalid PWR reg ID %d!", reg);
@@ -184,7 +188,7 @@ int xtensa_dm_queue_pwr_reg_read(struct xtensa_debug_module *dm,
 	}
 	if (dm->dap) {
 		uint32_t apbreg = xdm_pwr_regs[reg].apb + dm->ap_offset;
-		int retval = mem_ap_read_u32(dm->debug_ap, apbreg, data);
+		int retval = mem_ap_read_u32(dm->debug_ap, apbreg, (uint32_t *)data);
 		retval |= mem_ap_write_u32(dm->debug_ap, apbreg, clear);
 		return retval;
 	}
@@ -192,13 +196,11 @@ int xtensa_dm_queue_pwr_reg_read(struct xtensa_debug_module *dm,
 	uint8_t tap_insn = (reg == XDMREG_PWRCTL) ? TAPINS_PWRCTL : TAPINS_PWRSTAT;
 	int tap_insn_sz = (reg == XDMREG_PWRCTL) ? TAPINS_PWRCTL_LEN : TAPINS_PWRSTAT_LEN;
 	xtensa_dm_add_set_ir(dm, tap_insn);
-	xtensa_dm_add_dr_scan(dm, tap_insn_sz, &value_clr, (uint8_t *)data, TAP_IDLE);
+	xtensa_dm_add_dr_scan(dm, tap_insn_sz, &value_clr, data, TAP_IDLE);
 	return ERROR_OK;
 }
 
-int xtensa_dm_queue_pwr_reg_write(struct xtensa_debug_module *dm, 
-	xtensa_dm_pwr_reg reg, 
-	uint32_t data)
+int xtensa_dm_queue_pwr_reg_write(struct xtensa_debug_module *dm, unsigned int reg, uint32_t data)
 {
 	if (reg >= XDMREG_PWRNUM) {
 		LOG_ERROR("Invalid PWR reg ID %d!", reg);
@@ -218,37 +220,42 @@ int xtensa_dm_queue_pwr_reg_write(struct xtensa_debug_module *dm,
 
 int xtensa_dm_device_id_read(struct xtensa_debug_module *dm)
 {
-	uint32_t id;
-	dm->dbg_ops->queue_reg_read(dm, XDMREG_OCDID, &id);
+	uint8_t id_buf[sizeof(uint32_t)];
+
+	dm->dbg_ops->queue_reg_read(dm, XDMREG_OCDID, id_buf);
 	xtensa_dm_queue_tdi_idle(dm);
 	int res = xtensa_dm_queue_execute(dm);
 	if (res != ERROR_OK)
 		return res;
-	dm->device_id = id;
+	dm->device_id = buf_get_u32(id_buf, 0, 32);
 	return ERROR_OK;
 }
 
 int xtensa_dm_power_status_read(struct xtensa_debug_module *dm, uint32_t clear)
 {
-	dm->pwr_ops->queue_reg_read(dm, XDMREG_PWRSTAT, &dm->power_status.stat, clear);
-	dm->pwr_ops->queue_reg_read(dm, XDMREG_PWRSTAT, &dm->power_status.stath, clear);
+	/* uint8_t id_buf[sizeof(uint32_t)]; */
+
+	/* TODO: JTAG does not work when PWRCTL_JTAGDEBUGUSE is not set.
+	 * It is set in xtensa_examine(), need to move reading of NARADR_OCDID out of this function */
+	/* dm->dbg_ops->queue_reg_read(dm, NARADR_OCDID, id_buf);
+	 *Read reset state */
+	dm->pwr_ops->queue_reg_read(dm, XDMREG_PWRSTAT, (uint8_t *)&dm->power_status.stat, clear);
+	dm->pwr_ops->queue_reg_read(dm, XDMREG_PWRSTAT, (uint8_t *)&dm->power_status.stath, clear);
 	xtensa_dm_queue_tdi_idle(dm);
-	int res = xtensa_dm_queue_execute(dm);
-	if (res != ERROR_OK)
-		return res;
-	return ERROR_OK;
+	return xtensa_dm_queue_execute(dm);
 }
 
 int xtensa_dm_core_status_read(struct xtensa_debug_module *dm)
 {
-	uint32_t dsr;
+	uint8_t dsr_buf[sizeof(uint32_t)];
+
 	xtensa_dm_queue_enable(dm);
-	dm->dbg_ops->queue_reg_read(dm, XDMREG_DSR, &dsr);
+	dm->dbg_ops->queue_reg_read(dm, XDMREG_DSR, dsr_buf);
 	xtensa_dm_queue_tdi_idle(dm);
 	int res = xtensa_dm_queue_execute(dm);
 	if (res != ERROR_OK)
 		return res;
-	dm->core_status.dsr = dsr;
+	dm->core_status.dsr = buf_get_u32(dsr_buf, 0, 32);
 	return res;
 }
 
@@ -256,10 +263,7 @@ int xtensa_dm_core_status_clear(struct xtensa_debug_module *dm, xtensa_dsr_t bit
 {
 	dm->dbg_ops->queue_reg_write(dm, XDMREG_DSR, bits);
 	xtensa_dm_queue_tdi_idle(dm);
-	int res = xtensa_dm_queue_execute(dm);
-	if (res != ERROR_OK)
-		return res;
-	return ERROR_OK;
+	return xtensa_dm_queue_execute(dm);
 }
 
 // TODO: Update trace/perfmon for DAP/APB access
@@ -294,14 +298,16 @@ int xtensa_dm_trace_start(struct xtensa_debug_module *dm, struct xtensa_trace_st
 // TODO: Update trace/perfmon for DAP/APB access
 int xtensa_dm_trace_stop(struct xtensa_debug_module *dm, bool pto_enable)
 {
+	uint8_t traxctl_buf[sizeof(uint32_t)];
 	uint32_t traxctl;
 	struct xtensa_trace_status trace_status;
 
-	dm->dbg_ops->queue_reg_read(dm, XDMREG_TRAXCTRL, &traxctl);
+	dm->dbg_ops->queue_reg_read(dm, XDMREG_TRAXCTRL, traxctl_buf);
 	xtensa_dm_queue_tdi_idle(dm);
 	int res = jtag_execute_queue();
 	if (res != ERROR_OK)
 		return res;
+	traxctl = buf_get_u32(traxctl_buf, 0, 32);
 
 	if (!pto_enable)
 		traxctl &= ~(TRAXCTRL_PTOWS | TRAXCTRL_PTOWT);
@@ -327,58 +333,62 @@ int xtensa_dm_trace_stop(struct xtensa_debug_module *dm, bool pto_enable)
 // TODO: Update trace/perfmon for DAP/APB access
 int xtensa_dm_trace_status_read(struct xtensa_debug_module *dm, struct xtensa_trace_status *status)
 {
-	uint32_t traxstat;
+	uint8_t traxstat_buf[sizeof(uint32_t)];
 
-	dm->dbg_ops->queue_reg_read(dm, XDMREG_TRAXSTAT, &traxstat);
+	dm->dbg_ops->queue_reg_read(dm, XDMREG_TRAXSTAT, traxstat_buf);
 	xtensa_dm_queue_tdi_idle(dm);
 	int res = jtag_execute_queue();
-	if (res != ERROR_OK)
-		return res;
-	status->stat = traxstat;
-	return ERROR_OK;
+	if (res == ERROR_OK && status)
+		status->stat = buf_get_u32(traxstat_buf, 0, 32);
+	return res;
 }
 
 // TODO: Update trace/perfmon for DAP/APB access
 int xtensa_dm_trace_config_read(struct xtensa_debug_module *dm, struct xtensa_trace_config *config)
 {
-	uint32_t traxctl;
-	uint32_t memadrstart;
-	uint32_t memadrend;
-	uint32_t adr;
+	uint8_t traxctl_buf[sizeof(uint32_t)];
+	uint8_t memadrstart_buf[sizeof(uint32_t)];
+	uint8_t memadrend_buf[sizeof(uint32_t)];
+	uint8_t adr_buf[sizeof(uint32_t)];
 
-	dm->dbg_ops->queue_reg_read(dm, XDMREG_TRAXCTRL, &traxctl);
-	dm->dbg_ops->queue_reg_read(dm, XDMREG_MEMADDRSTART, &memadrstart);
-	dm->dbg_ops->queue_reg_read(dm, XDMREG_MEMADDREND, &memadrend);
-	dm->dbg_ops->queue_reg_read(dm, XDMREG_TRAXADDR, &adr);
+	if (!config)
+		return ERROR_FAIL;
+
+	dm->dbg_ops->queue_reg_read(dm, XDMREG_TRAXCTRL, traxctl_buf);
+	dm->dbg_ops->queue_reg_read(dm, XDMREG_MEMADDRSTART, memadrstart_buf);
+	dm->dbg_ops->queue_reg_read(dm, XDMREG_MEMADDREND, memadrend_buf);
+	dm->dbg_ops->queue_reg_read(dm, XDMREG_TRAXADDR, adr_buf);
 	xtensa_dm_queue_tdi_idle(dm);
 	int res = jtag_execute_queue();
-	if (res != ERROR_OK)
-		return res;
-	config->ctrl = traxctl;
-	config->memaddr_start = memadrstart;
-	config->memaddr_end = memadrend;
-	config->addr = adr;
-	return ERROR_OK;
+	if (res == ERROR_OK) {
+		config->ctrl = buf_get_u32(traxctl_buf, 0, 32);
+		config->memaddr_start = buf_get_u32(memadrstart_buf, 0, 32);
+		config->memaddr_end = buf_get_u32(memadrend_buf, 0, 32);
+		config->addr = buf_get_u32(adr_buf, 0, 32);
+	}
+	return res;
 }
 
 // TODO: Update trace/perfmon for DAP/APB access
 int xtensa_dm_trace_data_read(struct xtensa_debug_module *dm, uint8_t *dest, uint32_t size)
 {
-	for (uint32_t i = 0; i < size/4; i++)
-		dm->dbg_ops->queue_reg_read(dm, XDMREG_TRAXDATA, (uint32_t *)&dest[i*4]);
-	xtensa_dm_queue_tdi_idle(dm);
-	int res = jtag_execute_queue();
-	if (res != ERROR_OK)
-		return res;
+	if (!dest)
+		return ERROR_FAIL;
 
-	return ERROR_OK;
+	for (unsigned int i = 0; i < size / 4; i++)
+		dm->dbg_ops->queue_reg_read(dm, XDMREG_TRAXDATA, &dest[i*4]);
+	xtensa_dm_queue_tdi_idle(dm);
+	return jtag_execute_queue();
 }
 
 // TODO: Update trace/perfmon for DAP/APB access
 int xtensa_dm_perfmon_enable(struct xtensa_debug_module *dm, int counter_id,
 	const struct xtensa_perfmon_config *config)
 {
-	uint32_t pmstat;
+	if (!config)
+		return ERROR_FAIL;
+
+	uint8_t pmstat_buf[4];
 	uint32_t pmctrl = ((config->tracelevel) << 4) +
 		(config->select << 8) +
 		(config->mask << 16) +
@@ -389,37 +399,33 @@ int xtensa_dm_perfmon_enable(struct xtensa_debug_module *dm, int counter_id,
 	/* reset counter */
 	dm->dbg_ops->queue_reg_write(dm, XDMREG_PM0 + counter_id, 0);
 	dm->dbg_ops->queue_reg_write(dm, XDMREG_PMCTRL0 + counter_id, pmctrl);
-	dm->dbg_ops->queue_reg_read(dm, XDMREG_PMSTAT0 + counter_id, &pmstat);
+	dm->dbg_ops->queue_reg_read(dm, XDMREG_PMSTAT0 + counter_id, pmstat_buf);
 	xtensa_dm_queue_tdi_idle(dm);
-	int res = jtag_execute_queue();
-	if (res != ERROR_OK)
-		return res;
-
-	return ERROR_OK;
+	return jtag_execute_queue();
 }
 
 // TODO: Update trace/perfmon for DAP/APB access
 int xtensa_dm_perfmon_dump(struct xtensa_debug_module *dm, int counter_id,
 	struct xtensa_perfmon_result *out_result)
 {
-	uint32_t pmstat;
-	uint32_t pmcount;
+	uint8_t pmstat_buf[4];
+	uint8_t pmcount_buf[4];
 
-	dm->dbg_ops->queue_reg_read(dm, XDMREG_PMSTAT0 + counter_id, &pmstat);
-	dm->dbg_ops->queue_reg_read(dm, XDMREG_PM0 + counter_id, &pmcount);
+	dm->dbg_ops->queue_reg_read(dm, XDMREG_PMSTAT0 + counter_id, pmstat_buf);
+	dm->dbg_ops->queue_reg_read(dm, XDMREG_PM0 + counter_id, pmcount_buf);
 	xtensa_dm_queue_tdi_idle(dm);
 	int res = jtag_execute_queue();
-	if (res != ERROR_OK)
-		return res;
+	if (res == ERROR_OK) {
+		uint32_t stat = buf_get_u32(pmstat_buf, 0, 32);
+		uint64_t result = buf_get_u32(pmcount_buf, 0, 32);
 
-	uint32_t stat = pmstat;
-	uint64_t result = pmcount;
+		/* TODO: if counter # counter_id+1 has 'select' set to 1, use its value as the
+		* high 32 bits of the counter. */
+		if (out_result) {
+			out_result->overflow = ((stat & 1) != 0);
+			out_result->value = result;
+		}
+	}
 
-	/* TODO: if counter # counter_id+1 has 'select' set to 1, use its value as the
-	 * high 32 bits of the counter. */
-
-	out_result->overflow = ((stat & 1) != 0);
-	out_result->value = result;
-
-	return ERROR_OK;
+	return res;
 }

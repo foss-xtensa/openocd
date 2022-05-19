@@ -20,8 +20,10 @@
  *   You should have received a copy of the GNU General Public License     *
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  ***************************************************************************/
+#ifndef OPENOCD_TARGET_XTENSA_REGS_H
+#define OPENOCD_TARGET_XTENSA_REGS_H
 
-#include <target/register.h>
+struct reg_arch_type;
 
 enum xtensa_reg_id {
 	XT_REG_IDX_PC = 0,
@@ -78,19 +80,20 @@ enum xtensa_reg_id {
 	XT_NUM_REGS
 };
 
-#define XT_NUM_A_REGS	16
-
 typedef uint32_t xtensa_reg_val_t;
 
-enum xtensa_reg_type_t {
+#define XT_NUM_A_REGS	16
+
+enum xtensa_reg_type {
 	XT_REG_GENERAL	= 0,	/* General-purpose register; part of the windowed register set */
 	XT_REG_USER		= 1,	/* User register, needs RUR to read */
 	XT_REG_SPECIAL	= 2,	/* Special register, needs RSR to read */
 	XT_REG_DEBUG	= 3,	/* Register used for the debug interface. Don't mess with this. */
 	XT_REG_RELGEN	= 4,	/* Relative general address. Points to the absolute
 	                  		 * addresses plus the window index */
-	XT_REG_TIE		= 5,	/* TIE (custom) register */
-	XT_REG_OTHER	= 6,	/* Other (typically legacy) register */
+	XT_REG_FR		= 5,	/* Floating-point register */
+	XT_REG_TIE		= 6,	/* TIE (custom) register */
+	XT_REG_OTHER	= 7,	/* Other (typically legacy) register */
 	XT_REG_TYPE_NUM,
 
 	/* enum names must be one of the above types + _VAL or _MASK */
@@ -104,6 +107,8 @@ enum xtensa_reg_type_t {
 	XT_REG_DEBUG_VAL		= 0x0200,
 	XT_REG_RELGEN_MASK		= 0xFFE0,
 	XT_REG_RELGEN_VAL		= 0x0000,
+	XT_REG_FR_MASK			= 0xFFF0,
+	XT_REG_FR_VAL			= 0x0030,
 	XT_REG_TIE_MASK			= 0xF000,
 	XT_REG_TIE_VAL			= 0xF000,	/* unused */
 	XT_REG_OTHER_MASK		= 0xFFFF,
@@ -112,18 +117,19 @@ enum xtensa_reg_type_t {
 	XT_REG_INDEX_MASK		= 0x00FF
 };
 
-enum xtensa_reg_flags_t {
+enum xtensa_reg_flags {
 	XT_REGF_NOREAD	= 0x01,	/* Register is write-only */
-	XT_REGF_COPROC0	= 0x02	/* Can't be read if coproc0 isn't enabled */
+	XT_REGF_COPROC0	= 0x02,	/* Can't be read if coproc0 isn't enabled */
+	XT_REGF_MASK    = 0x03
 };
 
 struct xtensa_reg_desc {
 	const char *name;
 	bool exist;
-	int reg_num;                /* ISA register num (meaning depends on register type) */
-	int dbreg_num;              /* Debugger-visible register num (reg type encoded) */
-	enum xtensa_reg_type_t type;
-	enum xtensa_reg_flags_t flags;
+	unsigned int reg_num;			/* ISA register num (meaning depends on register type) */
+	unsigned int dbreg_num;			/* Debugger-visible register num (reg type encoded) */
+	enum xtensa_reg_type type;
+	enum xtensa_reg_flags flags;
 };
 
 
@@ -137,3 +143,5 @@ struct xtensa_reg_desc {
     { name, false, (reg_num), _XT_MK_DBREGN( reg_num, type ), (type), (flags) }
 
 extern struct xtensa_reg_desc xtensa_regs[XT_NUM_REGS];
+
+#endif	/* OPENOCD_TARGET_XTENSA_REGS_H */

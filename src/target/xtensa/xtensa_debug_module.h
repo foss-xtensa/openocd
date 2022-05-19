@@ -24,14 +24,13 @@
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  ***************************************************************************/
 
-#ifndef __XTENSA_DEBUG_MODULE_H__
-#define __XTENSA_DEBUG_MODULE_H__   1
+#ifndef OPENOCD_TARGET_XTENSA_DEBUG_MODULE_H
+#define OPENOCD_TARGET_XTENSA_DEBUG_MODULE_H
 
 #include <jtag/jtag.h>
-#include "arm_adi_v5.h"
 #include <helper/bits.h>
-#include "target.h"
-
+#include <target/arm_adi_v5.h>
+#include <target/target.h>
 
 /* Virtual IDs for using with xtensa_power_ops API */
 typedef enum {
@@ -295,6 +294,13 @@ typedef struct {
 #define OCDDSR_BREAKINITI           BIT(26)
 #define OCDDSR_DBGMODPOWERON        BIT(31)
 
+#define DEBUGCAUSE_IC               BIT(0)	/* ICOUNT exception */
+#define DEBUGCAUSE_IB               BIT(1)	/* IBREAK exception */
+#define DEBUGCAUSE_DB               BIT(2)	/* DBREAK exception */
+#define DEBUGCAUSE_BI               BIT(3)	/* BREAK instruction encountered */
+#define DEBUGCAUSE_BN               BIT(4)	/* BREAK.N instruction encountered */
+#define DEBUGCAUSE_DI               BIT(5)	/* Debug Interrupt */
+#define DEBUGCAUSE_VALID            BIT(31)	/* Pseudo-value to trigger reread (NX only) */
 /* NX stop cause */
 #define OCDDSR_STOPCAUSE_DI         (0)		/* Debug Interrupt */
 #define OCDDSR_STOPCAUSE_SS         (1)		/* Single-step completed */
@@ -306,60 +312,60 @@ typedef struct {
 #define OCDDSR_STOPCAUSE_DB1        (9)		/* HW watchpoint (DBREAK0 match) */
 
 /* LX stop cause */
-#define DEBUGCAUSE_IC               BIT(0)	/*ICOUNT exception */
-#define DEBUGCAUSE_IB               BIT(1)	/*IBREAK exception */
-#define DEBUGCAUSE_DB               BIT(2)	/*DBREAK exception */
-#define DEBUGCAUSE_BI               BIT(3)	/*BREAK instruction encountered */
-#define DEBUGCAUSE_BN               BIT(4)	/*BREAK.N instruction encountered */
-#define DEBUGCAUSE_DI               BIT(5)	/*Debug Interrupt */
-#define DEBUGCAUSE_VALID            BIT(31)	/*Pseudo-value to trigger reread (NX only) */
+#define DEBUGCAUSE_IC               BIT(0)	/* ICOUNT exception */
+#define DEBUGCAUSE_IB               BIT(1)	/* IBREAK exception */
+#define DEBUGCAUSE_DB               BIT(2)	/* DBREAK exception */
+#define DEBUGCAUSE_BI               BIT(3)	/* BREAK instruction encountered */
+#define DEBUGCAUSE_BN               BIT(4)	/* BREAK.N instruction encountered */
+#define DEBUGCAUSE_DI               BIT(5)	/* Debug Interrupt */
+#define DEBUGCAUSE_VALID            BIT(31)	/* Pseudo-value to trigger reread (NX only) */
 
-#define TRAXCTRL_TREN               BIT(0)	/*Trace enable. Tracing starts on 0->1 */
-#define TRAXCTRL_TRSTP              BIT(1)	/*Trace Stop. Make 1 to stop trace. */
-#define TRAXCTRL_PCMEN              BIT(2)	/*PC match enable */
-#define TRAXCTRL_PTIEN              BIT(4)	/*Processor-trigger enable */
-#define TRAXCTRL_CTIEN              BIT(5)	/*Cross-trigger enable */
-#define TRAXCTRL_TMEN               BIT(7)	/*Tracemem Enable. Always set. */
-#define TRAXCTRL_CNTU               BIT(9)	/*Post-stop-trigger countdown units; selects when DelayCount-- happens.
+#define TRAXCTRL_TREN               BIT(0)	/* Trace enable. Tracing starts on 0->1 */
+#define TRAXCTRL_TRSTP              BIT(1)	/* Trace Stop. Make 1 to stop trace. */
+#define TRAXCTRL_PCMEN              BIT(2)	/* PC match enable */
+#define TRAXCTRL_PTIEN              BIT(4)	/* Processor-trigger enable */
+#define TRAXCTRL_CTIEN              BIT(5)	/* Cross-trigger enable */
+#define TRAXCTRL_TMEN               BIT(7)	/* Tracemem Enable. Always set. */
+#define TRAXCTRL_CNTU               BIT(9)	/* Post-stop-trigger countdown units; selects when DelayCount-- happens.
 						 *0 - every 32-bit word written to tracemem, 1 - every cpu instruction */
-#define TRAXCTRL_TSEN               BIT(11)	/*Undocumented/deprecated? */
-#define TRAXCTRL_SMPER_SHIFT        12		/*Send sync every 2^(9-smper) messages. 7=reserved, 0=no sync msg */
-#define TRAXCTRL_SMPER_MASK         0x7		/*Synchronization message period */
-#define TRAXCTRL_PTOWT              BIT(16)	/*Processor Trigger Out (OCD halt) enabled when stop triggered */
-#define TRAXCTRL_PTOWS              BIT(17)	/*Processor Trigger Out (OCD halt) enabled when trace stop completes */
-#define TRAXCTRL_CTOWT              BIT(20)	/*Cross-trigger Out enabled when stop triggered */
-#define TRAXCTRL_CTOWS              BIT(21)	/*Cross-trigger Out enabled when trace stop completes */
-#define TRAXCTRL_ITCTO              BIT(22)	/*Integration mode: cross-trigger output */
-#define TRAXCTRL_ITCTIA             BIT(23)	/*Integration mode: cross-trigger ack */
-#define TRAXCTRL_ITATV              BIT(24)	/*replaces ATID when in integration mode: ATVALID output */
-#define TRAXCTRL_ATID_MASK          0x7F	/*ARB source ID */
+#define TRAXCTRL_TSEN               BIT(11)	/* Undocumented/deprecated? */
+#define TRAXCTRL_SMPER_SHIFT        12		/* Send sync every 2^(9-smper) messages. 7=reserved, 0=no sync msg */
+#define TRAXCTRL_SMPER_MASK         0x07	/* Synchronization message period */
+#define TRAXCTRL_PTOWT              BIT(16)	/* Processor Trigger Out (OCD halt) enabled when stop triggered */
+#define TRAXCTRL_PTOWS              BIT(17)	/* Processor Trigger Out (OCD halt) enabled when trace stop completes */
+#define TRAXCTRL_CTOWT              BIT(20)	/* Cross-trigger Out enabled when stop triggered */
+#define TRAXCTRL_CTOWS              BIT(21)	/* Cross-trigger Out enabled when trace stop completes */
+#define TRAXCTRL_ITCTO              BIT(22)	/* Integration mode: cross-trigger output */
+#define TRAXCTRL_ITCTIA             BIT(23)	/* Integration mode: cross-trigger ack */
+#define TRAXCTRL_ITATV              BIT(24)	/* replaces ATID when in integration mode: ATVALID output */
+#define TRAXCTRL_ATID_MASK          0x7F	/* ARB source ID */
 #define TRAXCTRL_ATID_SHIFT         24
-#define TRAXCTRL_ATEN               BIT(31)	/*ATB interface enable */
+#define TRAXCTRL_ATEN               BIT(31)	/* ATB interface enable */
 
-#define TRAXSTAT_TRACT              BIT(0)	/*Trace active flag. */
-#define TRAXSTAT_TRIG               BIT(1)	/*Trace stop trigger. Clears on TREN 1->0 */
-#define TRAXSTAT_PCMTG              BIT(2)	/*Stop trigger caused by PC match. Clears on TREN 1->0 */
-#define TRAXSTAT_PJTR               BIT(3)	/*JTAG transaction result. 1=err in preceding jtag transaction. */
-#define TRAXSTAT_PTITG              BIT(4)	/*Stop trigger caused by Processor Trigger Input. Clears on TREN 1->0 */
-#define TRAXSTAT_CTITG              BIT(5)	/*Stop trigger caused by Cross-Trigger Input. Clears on TREN 1->0 */
-#define TRAXSTAT_MEMSZ_SHIFT        8		/*Traceram size inducator. Usable trace ram is 2^MEMSZ bytes. */
+#define TRAXSTAT_TRACT              BIT(0)	/* Trace active flag. */
+#define TRAXSTAT_TRIG               BIT(1)	/* Trace stop trigger. Clears on TREN 1->0 */
+#define TRAXSTAT_PCMTG              BIT(2)	/* Stop trigger caused by PC match. Clears on TREN 1->0 */
+#define TRAXSTAT_PJTR               BIT(3)	/* JTAG transaction result. 1=err in preceding jtag transaction. */
+#define TRAXSTAT_PTITG              BIT(4)	/* Stop trigger caused by Processor Trigger Input.Clears on TREN 1->0 */
+#define TRAXSTAT_CTITG              BIT(5)	/* Stop trigger caused by Cross-Trigger Input. Clears on TREN 1->0 */
+#define TRAXSTAT_MEMSZ_SHIFT        8		/* Traceram size inducator. Usable trace ram is 2^MEMSZ bytes. */
 #define TRAXSTAT_MEMSZ_MASK         0x1F
-#define TRAXSTAT_PTO                BIT(16)	/*Processor Trigger Output: current value */
-#define TRAXSTAT_CTO                BIT(17)	/*Cross-Trigger Output: current value */
-#define TRAXSTAT_ITCTOA             BIT(22)	/*Cross-Trigger Out Ack: current value */
-#define TRAXSTAT_ITCTI              BIT(23)	/*Cross-Trigger Input: current value */
-#define TRAXSTAT_ITATR              BIT(24)	/*ATREADY Input: current value */
+#define TRAXSTAT_PTO                BIT(16)	/* Processor Trigger Output: current value */
+#define TRAXSTAT_CTO                BIT(17)	/* Cross-Trigger Output: current value */
+#define TRAXSTAT_ITCTOA             BIT(22)	/* Cross-Trigger Out Ack: current value */
+#define TRAXSTAT_ITCTI              BIT(23)	/* Cross-Trigger Input: current value */
+#define TRAXSTAT_ITATR              BIT(24)	/* ATREADY Input: current value */
 
-#define TRAXADDR_TADDR_SHIFT        0		/*Trax memory address, in 32-bit words. */
-#define TRAXADDR_TADDR_MASK         0x1FFFFF	/*Actually is only as big as the trace buffer size max addr. */
-#define TRAXADDR_TWRAP_SHIFT        21		/*Amount of times TADDR has overflown */
+#define TRAXADDR_TADDR_SHIFT        0		/* Trax memory address, in 32-bit words. */
+#define TRAXADDR_TADDR_MASK         0x1FFFFF	/* Actually is only as big as the trace buffer size max addr. */
+#define TRAXADDR_TWRAP_SHIFT        21		/* Amount of times TADDR has overflown */
 #define TRAXADDR_TWRAP_MASK         0x3FF
-#define TRAXADDR_TWSAT              BIT(31)	/*1 if TWRAP has overflown, clear by disabling tren.*/
+#define TRAXADDR_TWSAT              BIT(31)	/* 1 if TWRAP has overflown, clear by disabling tren.*/
 
-#define PCMATCHCTRL_PCML_SHIFT      0		/*Amount of lower bits to ignore in pc trigger register */
+#define PCMATCHCTRL_PCML_SHIFT      0		/* Amount of lower bits to ignore in pc trigger register */
 #define PCMATCHCTRL_PCML_MASK       0x1F
-#define PCMATCHCTRL_PCMS            BIT(31)	/*PC Match Sense, 0 - match when procs PC is in-range, 1 - match when */
-/*out-of-range */
+#define PCMATCHCTRL_PCMS            BIT(31)	/* PC Match Sense, 0-match when procs PC is in-range, 1-match when
+						 *out-of-range */
 
 #define XTENSA_MAX_PERF_COUNTERS    2
 #define XTENSA_MAX_PERF_SELECT      32
@@ -371,14 +377,14 @@ struct xtensa_debug_ops {
 	/** enable operation */
 	int (*queue_enable)(struct xtensa_debug_module *dm);
 	/** register read. */
-	int (*queue_reg_read)(struct xtensa_debug_module *dm, xtensa_dm_reg reg, uint32_t *data);
+	int (*queue_reg_read)(struct xtensa_debug_module *dm, xtensa_dm_reg reg, uint8_t *data);
 	/** register write. */
 	int (*queue_reg_write)(struct xtensa_debug_module *dm, xtensa_dm_reg reg, uint32_t data);
 };
 
 struct xtensa_power_ops {
 	/** register read. */
-	int (*queue_reg_read)(struct xtensa_debug_module *dm, xtensa_dm_pwr_reg reg, uint32_t *data,
+	int (*queue_reg_read)(struct xtensa_debug_module *dm, xtensa_dm_pwr_reg reg, uint8_t *data,
 		uint32_t clear);
 	/** register write. */
 	int (*queue_reg_write)(struct xtensa_debug_module *dm, xtensa_dm_pwr_reg reg, uint32_t data);
@@ -388,7 +394,6 @@ typedef uint32_t xtensa_pwrstat_t;
 typedef uint32_t xtensa_ocdid_t;
 typedef uint32_t xtensa_dsr_t;
 typedef uint32_t xtensa_traxstat_t;
-
 
 struct xtensa_power_status {
 	xtensa_pwrstat_t stat;
@@ -476,20 +481,14 @@ struct xtensa_debug_module {
 	uint32_t ap_offset;
 };
 
-
 int xtensa_dm_init(struct xtensa_debug_module *dm, const struct xtensa_debug_module_config *cfg);
 int xtensa_dm_examine(struct xtensa_debug_module *dm);
 int xtensa_dm_set_offset(struct xtensa_debug_module *dm, uint32_t offset);
 int xtensa_dm_queue_enable(struct xtensa_debug_module *dm);
-int xtensa_dm_queue_reg_read(struct xtensa_debug_module *dm, xtensa_dm_reg reg, uint32_t *value);
+int xtensa_dm_queue_reg_read(struct xtensa_debug_module *dm, xtensa_dm_reg reg, uint8_t *value);
 int xtensa_dm_queue_reg_write(struct xtensa_debug_module *dm, xtensa_dm_reg reg, uint32_t value);
-int xtensa_dm_queue_pwr_reg_read(struct xtensa_debug_module *dm,
-	xtensa_dm_pwr_reg reg,
-	uint32_t *data,
-	uint32_t clear);
-int xtensa_dm_queue_pwr_reg_write(struct xtensa_debug_module *dm, 
-	xtensa_dm_pwr_reg reg, 
-	uint32_t data);
+int xtensa_dm_queue_pwr_reg_read(struct xtensa_debug_module *dm, xtensa_dm_pwr_reg reg, uint8_t *data, uint32_t clear);
+int xtensa_dm_queue_pwr_reg_write(struct xtensa_debug_module *dm, unsigned int reg, uint32_t data);
 
 static inline int xtensa_dm_queue_execute(struct xtensa_debug_module *dm)
 {
@@ -546,14 +545,14 @@ static inline bool xtensa_dm_is_online(struct xtensa_debug_module *dm)
 
 static inline bool xtensa_dm_tap_was_reset(struct xtensa_debug_module *dm)
 {
-	return (!(dm->power_status.prev_stat & PWRSTAT_DEBUGWASRESET_DM(dm)) &&
-		dm->power_status.stat & PWRSTAT_DEBUGWASRESET_DM(dm));
+	return !(dm->power_status.prev_stat & PWRSTAT_DEBUGWASRESET_DM(dm)) &&
+		dm->power_status.stat & PWRSTAT_DEBUGWASRESET_DM(dm);
 }
 
 static inline bool xtensa_dm_core_was_reset(struct xtensa_debug_module *dm)
 {
-	return (!(dm->power_status.prev_stat & PWRSTAT_COREWASRESET_DM(dm)) &&
-		dm->power_status.stat & PWRSTAT_COREWASRESET_DM(dm));
+	return !(dm->power_status.prev_stat & PWRSTAT_COREWASRESET_DM(dm)) &&
+		dm->power_status.stat & PWRSTAT_COREWASRESET_DM(dm);
 }
 
 static inline bool xtensa_dm_core_is_stalled(struct xtensa_debug_module *dm)
@@ -571,4 +570,4 @@ int xtensa_dm_perfmon_enable(struct xtensa_debug_module *dm, int counter_id,
 int xtensa_dm_perfmon_dump(struct xtensa_debug_module *dm, int counter_id,
 	struct xtensa_perfmon_result *out_result);
 
-#endif	/*__XTENSA_DEBUG_MODULE_H__*/
+#endif	/* OPENOCD_TARGET_XTENSA_DEBUG_MODULE_H */

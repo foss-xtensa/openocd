@@ -1,5 +1,5 @@
 /***************************************************************************
- *   ESP32-S2 target for OpenOCD                                           *
+ *   Espressif Xtensa target API for OpenOCD                               *
  *   Copyright (C) 2019 Espressif Systems Ltd.                             *
  *   Author: Alexey Gerenkov <alexey@espressif.com>                        *
  *                                                                         *
@@ -17,31 +17,54 @@
  *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  ***************************************************************************/
 
-#ifndef XTENSA_ESP32_S2_H
-#define XTENSA_ESP32_S2_H
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
 
+#include <stdbool.h>
+#include <stdint.h>
+#include <target/smp.h>
 #include "esp_xtensa.h"
+#include <target/register.h>
 
-#define ESP32_S2_DROM_LOW   0x3f000000
-#define ESP32_S2_DROM_HIGH  0x3ff80000
-#define ESP32_S2_IROM_LOW   0x40080000
-#define ESP32_S2_IROM_HIGH  0x40800000
-
-enum esp32s2_rev {
-	ESP32_S2_REV_UNKNOWN = -1,
-	ESP32_S2_REV_BETA,
-	ESP32_S2_REV_0,
-	ESP32_S2_REV_LATEST = ESP32_S2_REV_0
-};
-
-struct esp32s2_common {
-	struct esp_xtensa_common esp_xtensa;
-	enum esp32s2_rev chip_rev;
-};
-
-static inline struct esp32s2_common *target_to_esp32s2(struct target *target)
+int esp_xtensa_init_arch_info(struct target *target,
+	struct esp_xtensa_common *esp_xtensa,
+	struct xtensa_debug_module_config *dm_cfg)
 {
-	return container_of(target->arch_info, struct esp32s2_common, esp_xtensa);
+	return xtensa_init_arch_info(target, &esp_xtensa->xtensa, dm_cfg);
 }
 
-#endif	/* XTENSA_ESP32_S2_H */
+int esp_xtensa_target_init(struct command_context *cmd_ctx, struct target *target)
+{
+	return xtensa_target_init(cmd_ctx, target);
+}
+
+void esp_xtensa_target_deinit(struct target *target)
+{
+	LOG_DEBUG("start");
+
+	xtensa_target_deinit(target);
+	free(target_to_esp_xtensa(target));	/* same as free(xtensa) */
+}
+
+int esp_xtensa_arch_state(struct target *target)
+{
+	return ERROR_OK;
+}
+
+int esp_xtensa_poll(struct target *target)
+{
+	return xtensa_poll(target);
+}
+
+int esp_xtensa_breakpoint_add(struct target *target, struct breakpoint *breakpoint)
+{
+	return xtensa_breakpoint_add(target, breakpoint);
+	/* flash breakpoints will be handled in another patch */
+}
+
+int esp_xtensa_breakpoint_remove(struct target *target, struct breakpoint *breakpoint)
+{
+	return xtensa_breakpoint_remove(target, breakpoint);
+	/* flash breakpoints will be handled in another patch */
+}

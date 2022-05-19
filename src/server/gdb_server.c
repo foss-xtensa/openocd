@@ -3664,9 +3664,6 @@ static int gdb_input_inner(struct connection *connection)
 				case 'R':
 					/* handle extended restart packet */
 					gdb_restart_inferior(connection, packet, packet_size);
-					if (target_restart_requires_response(target)) {
-						gdb_put_packet(connection, "OK", 0);
-					}
 					break;
 
 				case 'j':

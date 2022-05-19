@@ -304,10 +304,6 @@ struct target_type {
 	 * will typically be 32 for 32-bit targets, and 64 for 64-bit targets. If
 	 * not implemented, it's assumed to be 32. */
 	unsigned int (*data_bits)(struct target *target);
-
-	/* support optional GDB restart response packet
-	 */
-	bool (*gdb_restart_resp_req)(struct target *target);
 };
 
 #endif /* OPENOCD_TARGET_TARGET_TYPE_H */
