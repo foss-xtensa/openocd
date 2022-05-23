@@ -36,23 +36,11 @@ int xtensa_chip_init_arch_info(struct target *target, void *arch_info,
 		struct xtensa_debug_module_config *dm_cfg)
 {
 	struct xtensa_chip_common *xtensa_chip = (struct xtensa_chip_common *)arch_info;
-
-#if 0   /* TODO: required? */
-	int ret = target_register_exit_callback(xtensa_chip_on_exit, NULL);
-	if (ret != ERROR_OK)
-		return ret;
-	ret = target_register_event_callback(xtensa_chip_handle_target_event, target);
-	if (ret != ERROR_OK)
-		return ret;
-#else
-	int ret;
-#endif  /* TODO: required? */
-
 	if ((dm_cfg->queue_tdi_idle == NULL) && (dm_cfg->tap != NULL)) {
 		dm_cfg->queue_tdi_idle = xtensa_chip_queue_tdi_idle;
 		dm_cfg->queue_tdi_idle_arg = target;
 	}
-	ret = xtensa_init_arch_info(target, &xtensa_chip->xtensa, dm_cfg);
+	int ret = xtensa_init_arch_info(target, &xtensa_chip->xtensa, dm_cfg);
 	if (ret != ERROR_OK) {
 		return ret;
 	}
@@ -63,43 +51,43 @@ int xtensa_chip_init_arch_info(struct target *target, void *arch_info,
 
 static int xtensa_chip_handle_target_event(struct target *target, enum target_event event, void *priv)
 {
-    if (target != priv)
-        return ERROR_OK;
+	if (target != priv)
+		return ERROR_OK;
 
-    LOG_DEBUG("%d", event);
+	LOG_DEBUG("%d", event);
 
-    int ret = xtensa_handle_target_event(target, event, priv);
-    if (ret != ERROR_OK)
-        return ret;
+	int ret = xtensa_handle_target_event(target, event, priv);
+	if (ret != ERROR_OK)
+		return ret;
 
-    switch (event) {
-        case TARGET_EVENT_HALTED:
-            /* debug stubs not supported */
-            break;
-        case TARGET_EVENT_GDB_DETACH:
-            /* Flash BP not supported */
-            break;
-        default:
-            break;
-    }
-    return ERROR_OK;
+	switch (event) {
+	case TARGET_EVENT_HALTED:
+		/* debug stubs not supported */
+		break;
+	case TARGET_EVENT_GDB_DETACH:
+		/* Flash BP not supported */
+		break;
+	default:
+		break;
+	}
+	return ERROR_OK;
 }
 
 int xtensa_chip_target_init(struct command_context *cmd_ctx, struct target *target)
 {
-    int ret = xtensa_target_init(cmd_ctx, target);
-    if (ret != ERROR_OK)
-        return ret;
+	int ret = xtensa_target_init(cmd_ctx, target);
+	if (ret != ERROR_OK)
+		return ret;
 
-    ret = target_register_event_callback(xtensa_chip_handle_target_event, target);
-    if (ret != ERROR_OK)
-        return ret;
+	ret = target_register_event_callback(xtensa_chip_handle_target_event, target);
+	if (ret != ERROR_OK)
+		return ret;
 
-    ret = xtensa_fileio_init(target);
-    if (ret != ERROR_OK)
-        return ret;
+	ret = xtensa_fileio_init(target);
+	if (ret != ERROR_OK)
+		return ret;
 
-    return ERROR_OK;
+	return ERROR_OK;
 }
 
 int xtensa_chip_arch_state(struct target *target)
@@ -109,22 +97,22 @@ int xtensa_chip_arch_state(struct target *target)
 
 static int xtensa_chip_poll(struct target *target)
 {
-    enum target_state old_state = target->state;
-    int ret;
+	enum target_state old_state = target->state;
+	int ret;
 
-    ret = xtensa_poll(target);
+	ret = xtensa_poll(target);
 
-    if (old_state != TARGET_HALTED && target->state == TARGET_HALTED) {
-        /*Call any event callbacks that are applicable */
-        if (old_state == TARGET_DEBUG_RUNNING)
-            target_call_event_callbacks(target, TARGET_EVENT_DEBUG_HALTED);
-        else {
-            xtensa_fileio_detect_proc(target);
-            target_call_event_callbacks(target, TARGET_EVENT_HALTED);
-        }
-    }
+	if (old_state != TARGET_HALTED && target->state == TARGET_HALTED) {
+		/*Call any event callbacks that are applicable */
+		if (old_state == TARGET_DEBUG_RUNNING)
+			target_call_event_callbacks(target, TARGET_EVENT_DEBUG_HALTED);
+		else {
+			xtensa_fileio_detect_proc(target);
+			target_call_event_callbacks(target, TARGET_EVENT_HALTED);
+		}
+	}
 
-    return ret;
+	return ret;
 }
 
 /* 

@@ -25,8 +25,8 @@
 #include "xtensa_fileio.h"
 #include "xtensa.h"
 
-#define XTENSA_SYSCALL(x)           XT_INS_BREAK(x,1,14)
-#define XTENSA_SYSCALL_SZ           3
+#define XTENSA_SYSCALL(x)			XT_INS_BREAK(x,1,14)
+#define XTENSA_SYSCALL_SZ			3
 #define XTENSA_SYSCALL_LEN_MAX		255
 
 
@@ -75,11 +75,11 @@ int xtensa_fileio_detect_proc(struct target *target)
 
 int xtensa_get_gdb_fileio_info(struct target *target, struct gdb_fileio_info *fileio_info)
 {
-    /* fill syscall parameters to file-I/O info */
-    if (!fileio_info) {
-        LOG_ERROR("File-I/O data structure uninitialized");
-        return ERROR_FAIL;
-    }
+	/* fill syscall parameters to file-I/O info */
+	if (!fileio_info) {
+		LOG_ERROR("File-I/O data structure uninitialized");
+		return ERROR_FAIL;
+	}
 
 	struct xtensa *xtensa = target_to_xtensa(target);
 	if (!xtensa->proc_syscall) {
@@ -96,80 +96,80 @@ int xtensa_get_gdb_fileio_info(struct target *target, struct gdb_fileio_info *fi
 	LOG_DEBUG("File-I/O: syscall 0x%x 0x%x 0x%x 0x%x 0x%x", syscall, arg0, arg1, arg2, arg3);
 
 	switch (syscall) {
-		case XTENSA_SYSCALL_OPEN:
-			snprintf(fileio_info->identifier, XTENSA_SYSCALL_LEN_MAX, "open");
-			fileio_info->param_1 = arg0;	// pathp
-			fileio_info->param_2 = arg3;	// len
-			fileio_info->param_3 = arg1;	// flags
-			fileio_info->param_4 = arg2;	// mode
-            break;
-		case XTENSA_SYSCALL_CLOSE:
-			snprintf(fileio_info->identifier, XTENSA_SYSCALL_LEN_MAX, "close");
-			fileio_info->param_1 = arg0;	// fd
-            break;
-		case XTENSA_SYSCALL_READ:
-			snprintf(fileio_info->identifier, XTENSA_SYSCALL_LEN_MAX, "read");
-			fileio_info->param_1 = arg0;	// fd
-			fileio_info->param_2 = arg1;	// bufp
-			fileio_info->param_3 = arg2;	// count
-            break;
-		case XTENSA_SYSCALL_WRITE:
-			snprintf(fileio_info->identifier, XTENSA_SYSCALL_LEN_MAX, "write");
-			fileio_info->param_1 = arg0;	// fd
-			fileio_info->param_2 = arg1;	// bufp
-			fileio_info->param_3 = arg2;	// count
-            break;
-		case XTENSA_SYSCALL_LSEEK:
-			snprintf(fileio_info->identifier, XTENSA_SYSCALL_LEN_MAX, "lseek");
-			fileio_info->param_1 = arg0;	// fd
-			fileio_info->param_2 = arg1;	// offset
-			fileio_info->param_3 = arg2;	// flags
-            break;
-		case XTENSA_SYSCALL_RENAME:
-			snprintf(fileio_info->identifier, XTENSA_SYSCALL_LEN_MAX, "rename");
-			fileio_info->param_1 = arg0;	// old pathp
-			fileio_info->param_2 = arg3;	// old len
-			fileio_info->param_3 = arg1;	// new pathp
-			fileio_info->param_4 = arg2;	// new len
-            break;
-		case XTENSA_SYSCALL_UNLINK:
-			snprintf(fileio_info->identifier, XTENSA_SYSCALL_LEN_MAX, "unlink");
-			fileio_info->param_1 = arg0;	// pathnamep
-			fileio_info->param_2 = arg1;	// len
-            break;
-		case XTENSA_SYSCALL_STAT:
-			snprintf(fileio_info->identifier, XTENSA_SYSCALL_LEN_MAX, "stat");
-			fileio_info->param_1 = arg0;	// pathnamep
-			fileio_info->param_2 = arg2;	// len
-			fileio_info->param_3 = arg1;	// bufp
-            break;
-		case XTENSA_SYSCALL_FSTAT:
-			snprintf(fileio_info->identifier, XTENSA_SYSCALL_LEN_MAX, "fstat");
-			fileio_info->param_1 = arg0;	// fd
-			fileio_info->param_2 = arg1;	// bufp
-            break;
-		case XTENSA_SYSCALL_GETTIMEOFDAY:
-			snprintf(fileio_info->identifier, XTENSA_SYSCALL_LEN_MAX, "gettimeofday");
-			fileio_info->param_1 = arg0;	// tvp
-			fileio_info->param_2 = arg1;	// tzp
-            break;
-		case XTENSA_SYSCALL_ISATTY:
-			snprintf(fileio_info->identifier, XTENSA_SYSCALL_LEN_MAX, "isatty");
-			fileio_info->param_1 = arg0;	// fd
-            break;
-		case XTENSA_SYSCALL_SYSTEM:
-			snprintf(fileio_info->identifier, XTENSA_SYSCALL_LEN_MAX, "system");
-			fileio_info->param_1 = arg0;	// cmdp
-			fileio_info->param_2 = arg1;	// len
-            break;
-		default:
-			snprintf(fileio_info->identifier, XTENSA_SYSCALL_LEN_MAX, "unknown");
-			LOG_DEBUG("File-I/O: syscall unknown (%d), pc=0x%08X", 
-				syscall, xtensa_reg_get(target, XT_REG_IDX_PC));
-			LOG_INFO("File-I/O: syscall unknown (%d), pc=0x%08X",
-				syscall, xtensa_reg_get(target, XT_REG_IDX_PC));
-			retval = ERROR_FAIL;
-			break;
+	case XTENSA_SYSCALL_OPEN:
+		snprintf(fileio_info->identifier, XTENSA_SYSCALL_LEN_MAX, "open");
+		fileio_info->param_1 = arg0;	// pathp
+		fileio_info->param_2 = arg3;	// len
+		fileio_info->param_3 = arg1;	// flags
+		fileio_info->param_4 = arg2;	// mode
+		break;
+	case XTENSA_SYSCALL_CLOSE:
+		snprintf(fileio_info->identifier, XTENSA_SYSCALL_LEN_MAX, "close");
+		fileio_info->param_1 = arg0;	// fd
+		break;
+	case XTENSA_SYSCALL_READ:
+		snprintf(fileio_info->identifier, XTENSA_SYSCALL_LEN_MAX, "read");
+		fileio_info->param_1 = arg0;	// fd
+		fileio_info->param_2 = arg1;	// bufp
+		fileio_info->param_3 = arg2;	// count
+		break;
+	case XTENSA_SYSCALL_WRITE:
+		snprintf(fileio_info->identifier, XTENSA_SYSCALL_LEN_MAX, "write");
+		fileio_info->param_1 = arg0;	// fd
+		fileio_info->param_2 = arg1;	// bufp
+		fileio_info->param_3 = arg2;	// count
+		break;
+	case XTENSA_SYSCALL_LSEEK:
+		snprintf(fileio_info->identifier, XTENSA_SYSCALL_LEN_MAX, "lseek");
+		fileio_info->param_1 = arg0;	// fd
+		fileio_info->param_2 = arg1;	// offset
+		fileio_info->param_3 = arg2;	// flags
+		break;
+	case XTENSA_SYSCALL_RENAME:
+		snprintf(fileio_info->identifier, XTENSA_SYSCALL_LEN_MAX, "rename");
+		fileio_info->param_1 = arg0;	// old pathp
+		fileio_info->param_2 = arg3;	// old len
+		fileio_info->param_3 = arg1;	// new pathp
+		fileio_info->param_4 = arg2;	// new len
+		break;
+	case XTENSA_SYSCALL_UNLINK:
+		snprintf(fileio_info->identifier, XTENSA_SYSCALL_LEN_MAX, "unlink");
+		fileio_info->param_1 = arg0;	// pathnamep
+		fileio_info->param_2 = arg1;	// len
+		break;
+	case XTENSA_SYSCALL_STAT:
+		snprintf(fileio_info->identifier, XTENSA_SYSCALL_LEN_MAX, "stat");
+		fileio_info->param_1 = arg0;	// pathnamep
+		fileio_info->param_2 = arg2;	// len
+		fileio_info->param_3 = arg1;	// bufp
+		break;
+	case XTENSA_SYSCALL_FSTAT:
+		snprintf(fileio_info->identifier, XTENSA_SYSCALL_LEN_MAX, "fstat");
+		fileio_info->param_1 = arg0;	// fd
+		fileio_info->param_2 = arg1;	// bufp
+		break;
+	case XTENSA_SYSCALL_GETTIMEOFDAY:
+		snprintf(fileio_info->identifier, XTENSA_SYSCALL_LEN_MAX, "gettimeofday");
+		fileio_info->param_1 = arg0;	// tvp
+		fileio_info->param_2 = arg1;	// tzp
+		break;
+	case XTENSA_SYSCALL_ISATTY:
+		snprintf(fileio_info->identifier, XTENSA_SYSCALL_LEN_MAX, "isatty");
+		fileio_info->param_1 = arg0;	// fd
+		break;
+	case XTENSA_SYSCALL_SYSTEM:
+		snprintf(fileio_info->identifier, XTENSA_SYSCALL_LEN_MAX, "system");
+		fileio_info->param_1 = arg0;	// cmdp
+		fileio_info->param_2 = arg1;	// len
+		break;
+	default:
+		snprintf(fileio_info->identifier, XTENSA_SYSCALL_LEN_MAX, "unknown");
+		LOG_DEBUG("File-I/O: syscall unknown (%d), pc=0x%08X", 
+			syscall, xtensa_reg_get(target, XT_REG_IDX_PC));
+		LOG_INFO("File-I/O: syscall unknown (%d), pc=0x%08X",
+			syscall, xtensa_reg_get(target, XT_REG_IDX_PC));
+		retval = ERROR_FAIL;
+		break;
 	}
 
 	return retval;
@@ -182,8 +182,8 @@ int xtensa_gdb_fileio_end(struct target *target, int retcode, int fileio_errno, 
 		return ERROR_FAIL;
 	}
 
-    LOG_DEBUG("File-I/O: syscall return code: 0x%x, errno: 0x%x , ctrl_c: %s",
-            retcode, fileio_errno, ctrl_c ? "true" : "false");
+	LOG_DEBUG("File-I/O: syscall return code: 0x%x, errno: 0x%x , ctrl_c: %s",
+			retcode, fileio_errno, ctrl_c ? "true" : "false");
 
 	// If interrupt was requested before FIO completion (ERRNO==4), halt and repeat syscall
 	// Otherwise, set File-I/O Ax and underlying ARx registers, increment PC
@@ -197,16 +197,5 @@ int xtensa_gdb_fileio_end(struct target *target, int retcode, int fileio_errno, 
 	}
 
 	xtensa->proc_syscall = false;
-    return ERROR_OK;
-
-#if 0
-    struct nds32 *nds32 = target_to_nds32(target);
-
-    nds32_set_mapped_reg(nds32, R0, (uint32_t)retcode);
-
-    nds32->virtual_hosting_errno = fileio_errno;
-    nds32->virtual_hosting_ctrl_c = ctrl_c;
-    nds32->active_syscall_id = NDS32_SYSCALL_UNDEFINED;
-#endif
+	return ERROR_OK;
 }
-

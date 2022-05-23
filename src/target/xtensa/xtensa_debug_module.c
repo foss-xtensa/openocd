@@ -39,11 +39,11 @@
 #define TAPINS_BYPASS_LEN       1
 
 /* Table of power register offsets for APB space */
-static const xtensa_dm_pwr_reg_offsets xdm_pwr_regs[XDMREG_PWRNUM] = 
+static const struct xtensa_dm_pwr_reg_offsets xdm_pwr_regs[XDMREG_PWRNUM] = 
 		XTENSA_DM_PWR_REG_OFFSETS;
 
 /* Table of debug register offsets for Nexus and APB space */
-static const xtensa_dm_reg_offsets xdm_regs[XDMREG_NUM] = 
+static const struct xtensa_dm_reg_offsets xdm_regs[XDMREG_NUM] = 
 		XTENSA_DM_REG_OFFSETS;
 
 static void xtensa_dm_add_set_ir(struct xtensa_debug_module *dm, uint8_t value)
@@ -146,7 +146,7 @@ int xtensa_dm_queue_enable(struct xtensa_debug_module *dm)
 	return dm->dbg_ops->queue_reg_write(dm, XDMREG_DCRSET, OCDDCR_ENABLEOCD);
 }
 
-int xtensa_dm_queue_reg_read(struct xtensa_debug_module *dm, unsigned int reg, uint8_t *value)
+int xtensa_dm_queue_reg_read(struct xtensa_debug_module *dm, enum xtensa_dm_reg reg, uint8_t *value)
 {
 	if (reg >= XDMREG_NUM) {
 		LOG_ERROR("Invalid DBG reg ID %d!", reg);
@@ -163,7 +163,7 @@ int xtensa_dm_queue_reg_read(struct xtensa_debug_module *dm, unsigned int reg, u
 	return ERROR_OK;
 }
 
-int xtensa_dm_queue_reg_write(struct xtensa_debug_module *dm, unsigned int reg, uint32_t value)
+int xtensa_dm_queue_reg_write(struct xtensa_debug_module *dm, enum xtensa_dm_reg reg, uint32_t value)
 {
 	if (reg >= XDMREG_NUM) {
 		LOG_ERROR("Invalid DBG reg ID %d!", reg);
@@ -180,7 +180,7 @@ int xtensa_dm_queue_reg_write(struct xtensa_debug_module *dm, unsigned int reg, 
 	return ERROR_OK;
 }
 
-int xtensa_dm_queue_pwr_reg_read(struct xtensa_debug_module *dm, unsigned int reg, uint8_t *data, uint32_t clear)
+int xtensa_dm_queue_pwr_reg_read(struct xtensa_debug_module *dm, enum xtensa_dm_pwr_reg reg, uint8_t *data, uint32_t clear)
 {
 	if (reg >= XDMREG_PWRNUM) {
 		LOG_ERROR("Invalid PWR reg ID %d!", reg);
@@ -200,7 +200,7 @@ int xtensa_dm_queue_pwr_reg_read(struct xtensa_debug_module *dm, unsigned int re
 	return ERROR_OK;
 }
 
-int xtensa_dm_queue_pwr_reg_write(struct xtensa_debug_module *dm, unsigned int reg, uint32_t data)
+int xtensa_dm_queue_pwr_reg_write(struct xtensa_debug_module *dm, enum xtensa_dm_pwr_reg reg, uint32_t data)
 {
 	if (reg >= XDMREG_PWRNUM) {
 		LOG_ERROR("Invalid PWR reg ID %d!", reg);

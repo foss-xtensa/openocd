@@ -535,5 +535,5 @@ struct target_type esp32s2_target = {
 	.commands = esp32s2_command_handlers,
 
 	.get_gdb_fileio_info = xtensa_get_gdb_fileio_info,
-    .gdb_fileio_end = xtensa_gdb_fileio_end,
+	.gdb_fileio_end = xtensa_gdb_fileio_end,
 };

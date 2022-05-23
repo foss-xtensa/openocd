@@ -39,9 +39,7 @@ enum flash_bootstrap {
 struct xtensa_chip_common {
 	struct xtensa xtensa;
 
-	/* TODO: remove following fields
-	 * struct TBD_dbg_stubs dbg_stubs;
-	 */
+	/* TODO: remove following fields */
 	enum flash_bootstrap flash_bootstrap;
 };
 

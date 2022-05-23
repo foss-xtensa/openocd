@@ -133,14 +133,16 @@ struct xtensa_reg_desc {
 };
 
 
-#define _XT_MK_DBREGN(reg_num, reg_type)                \
-    (( reg_type ## _VAL ) | ( reg_num ))
+#define _XT_MK_DBREGN(reg_num, reg_type)					\
+	(( reg_type ## _VAL ) | ( reg_num ))
 
-#define _XT_MK_DBREGN_MASK(reg_num, reg_mask)           \
-    (( reg_mask ) | ( reg_num ))
+#define _XT_MK_DBREGN_MASK(reg_num, reg_mask)				\
+	(( reg_mask ) | ( reg_num ))
 
-#define XT_MK_REG_DESC(name, reg_num, type, flags)      \
-    { name, false, (reg_num), _XT_MK_DBREGN( reg_num, type ), (type), (flags) }
+#define XT_MK_REG_DESC(n, r, t, f)							\
+	{ .name = (n), .exist = false, .reg_num = (r),			\
+	  .dbreg_num = _XT_MK_DBREGN(r, t), .type = (t),		\
+	  .flags = (f) }
 
 extern struct xtensa_reg_desc xtensa_regs[XT_NUM_REGS];
 
