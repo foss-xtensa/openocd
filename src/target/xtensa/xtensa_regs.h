@@ -1,5 +1,5 @@
 /***************************************************************************
- *   Xtensa Target Support for OpenOCD                                     *
+ *   Generic Xtensa target API for OpenOCD                                 *
  *   Copyright (C) 2020-2022 Cadence Design Systems, Inc.                  *
  *   Author: Ian Thompson <ianst@cadence.com>                              *
  *                                                                         *

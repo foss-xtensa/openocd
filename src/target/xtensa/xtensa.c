@@ -1,5 +1,5 @@
 /***************************************************************************
- *   Xtensa Target Support for OpenOCD                                     *
+ *   Generic Xtensa target API for OpenOCD                                 *
  *   Copyright (C) 2020-2022 Cadence Design Systems, Inc.                  *
  *   Author: Ian Thompson <ianst@cadence.com>                              *
  *                                                                         *
@@ -3091,6 +3091,7 @@ int xtensa_init_arch_info(struct target *target, struct xtensa *xtensa,
 	const struct xtensa_debug_module_config *dm_cfg)
 {
 	target->arch_info = xtensa;
+	xtensa->common_magic = XTENSA_COMMON_MAGIC;
 	xtensa->target = target;
 	xtensa->stepping_isr_mode = XT_STEPPING_ISR_ON;
 
@@ -3976,7 +3977,7 @@ COMMAND_HELPER(xtensa_cmd_tracestart_do, struct xtensa *xtensa)
 	struct xtensa_trace_status trace_status;
 	struct xtensa_trace_start_config cfg = {
 		.stoppc = 0,
-		.stopmask = -1,
+		.stopmask = XTENSA_STOPMASK_DISABLED,
 		.after = 0,
 		.after_is_words = false
 	};

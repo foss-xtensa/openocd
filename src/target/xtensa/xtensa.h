@@ -1,5 +1,5 @@
 /***************************************************************************
- *   Xtensa Target Support for OpenOCD                                     *
+ *   Generic Xtensa target                                                 *
  *   Copyright (C) 2020-2022 Cadence Design Systems, Inc.                  *
  *   Author: Ian Thompson <ianst@cadence.com>                              *
  *                                                                         *
@@ -192,10 +192,13 @@ struct xtensa_sw_breakpoint {
 	uint8_t insn_sz;	/* 2 or 3 bytes */
 };
 
+#define XTENSA_COMMON_MAGIC 0x54E4E555
+
 /**
  * Represents a generic Xtensa core.
  */
 struct xtensa {
+	unsigned int common_magic;
 	struct xtensa_chip_common *xtensa_chip;
 	struct xtensa_config *core_config;
 	struct xtensa_debug_module dbg_mod;
@@ -203,7 +206,7 @@ struct xtensa {
 	uint32_t total_regs_num;
 	uint32_t core_regs_num;
 	bool regmap_contiguous;
-	uint32_t genpkt_regs_num;
+	unsigned int genpkt_regs_num;
 	struct xtensa_reg_desc **contiguous_regs_desc;
 	struct reg **contiguous_regs_list;
 	/* An array of pointers to buffers to backup registers' values while algo is run on target.
@@ -241,8 +244,10 @@ struct xtensa {
 
 static inline struct xtensa *target_to_xtensa(struct target *target)
 {
-	assert(target != NULL);
-	return target->arch_info;
+	assert(target);
+	struct xtensa *xtensa = target->arch_info;
+	assert(xtensa->common_magic == XTENSA_COMMON_MAGIC);
+	return xtensa;
 }
 
 int xtensa_init_arch_info(struct target *target,

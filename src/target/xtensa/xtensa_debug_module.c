@@ -278,7 +278,7 @@ int xtensa_dm_trace_start(struct xtensa_debug_module *dm, struct xtensa_trace_st
 
 	/*Set up parameters */
 	dm->dbg_ops->queue_reg_write(dm, XDMREG_TRAXADDR, 0);
-	if (cfg->stopmask != (uint32_t)-1) {
+	if (cfg->stopmask != XTENSA_STOPMASK_DISABLED) {
 		dm->dbg_ops->queue_reg_write(dm, XDMREG_PCMATCHCTRL,
 			(cfg->stopmask << PCMATCHCTRL_PCML_SHIFT));
 		dm->dbg_ops->queue_reg_write(dm, XDMREG_TRIGGERPC, cfg->stoppc);
@@ -289,7 +289,7 @@ int xtensa_dm_trace_start(struct xtensa_debug_module *dm, struct xtensa_trace_st
 		dm,
 		XDMREG_TRAXCTRL,
 		TRAXCTRL_TREN |
-		((cfg->stopmask != (uint32_t)-1) ? TRAXCTRL_PCMEN : 0) | TRAXCTRL_TMEN |
+		((cfg->stopmask != XTENSA_STOPMASK_DISABLED) ? TRAXCTRL_PCMEN : 0) | TRAXCTRL_TMEN |
 		(cfg->after_is_words ? 0 : TRAXCTRL_CNTU) | (0 << TRAXCTRL_SMPER_SHIFT) | TRAXCTRL_PTOWS);
 	xtensa_dm_queue_tdi_idle(dm);
 	return jtag_execute_queue();

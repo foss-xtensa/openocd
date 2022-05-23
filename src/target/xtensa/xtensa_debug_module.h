@@ -371,6 +371,8 @@ typedef struct {
 #define XTENSA_MAX_PERF_SELECT      32
 #define XTENSA_MAX_PERF_MASK        0xffff
 
+#define XTENSA_STOPMASK_DISABLED    UINT32_MAX
+
 struct xtensa_debug_module;
 
 struct xtensa_debug_ops {
@@ -426,7 +428,7 @@ struct xtensa_trace_start_config {
 	uint32_t stoppc;
 	bool after_is_words;
 	uint32_t after;
-	uint32_t stopmask;	/* -1: disable PC match option */
+	uint32_t stopmask;	/* UINT32_MAX: disable PC match option */
 };
 
 struct xtensa_perfmon_config {
