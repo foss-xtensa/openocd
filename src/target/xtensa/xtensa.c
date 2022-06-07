@@ -396,7 +396,7 @@ static inline bool xtensa_is_cacheable(const struct xtensa_cache_config *cache,
 	const struct xtensa_local_mem_config *mem,
 	target_addr_t address)
 {
-	if (cache->size == 0)
+	if (!cache->size)
 		return false;
 	return xtensa_memory_region_find(mem, address) != NULL;
 }
@@ -407,7 +407,7 @@ static inline bool xtensa_is_icacheable(struct xtensa *xtensa, target_addr_t add
 		xtensa_is_cacheable(&xtensa->core_config->icache, &xtensa->core_config->iram, address) ||
 		xtensa_is_cacheable(&xtensa->core_config->icache, &xtensa->core_config->irom, address) ||
 		xtensa_is_cacheable(&xtensa->core_config->icache, &xtensa->core_config->sram, address) ||
-		xtensa_is_cacheable(&xtensa->core_config->icache, &xtensa->core_config->srom, address) );
+		xtensa_is_cacheable(&xtensa->core_config->icache, &xtensa->core_config->srom, address));
 
 }
 
@@ -417,7 +417,7 @@ static inline bool xtensa_is_dcacheable(struct xtensa *xtensa, target_addr_t add
 		xtensa_is_cacheable(&xtensa->core_config->dcache, &xtensa->core_config->dram, address) ||
 		xtensa_is_cacheable(&xtensa->core_config->dcache, &xtensa->core_config->drom, address) ||
 		xtensa_is_cacheable(&xtensa->core_config->dcache, &xtensa->core_config->sram, address) ||
-		xtensa_is_cacheable(&xtensa->core_config->dcache, &xtensa->core_config->srom, address) );
+		xtensa_is_cacheable(&xtensa->core_config->dcache, &xtensa->core_config->srom, address));
 }
 
 static int xtensa_core_reg_get(struct reg *reg)
@@ -430,7 +430,7 @@ static int xtensa_core_reg_get(struct reg *reg)
 		return ERROR_TARGET_NOT_HALTED;
 	if (!reg->exist) {
 		if (strncmp(reg->name, "?0x", 3) == 0) {
-			uint32_t regnum = strtoul(reg->name + 1, 0, 0);
+			unsigned int regnum = strtoul(reg->name + 1, 0, 0);
 			LOG_WARNING("Read unknown register 0x%04x ignored", regnum);
 			return ERROR_OK;
 		}
@@ -450,7 +450,7 @@ static int xtensa_core_reg_set(struct reg *reg, uint8_t *buf)
 
 	if (!reg->exist) {
 		if (strncmp(reg->name, "?0x", 3) == 0) {
-			uint32_t regnum = strtoul(reg->name + 1, 0, 0);
+			unsigned int regnum = strtoul(reg->name + 1, 0, 0);
 			LOG_WARNING("Write unknown register 0x%04x ignored", regnum);
 			return ERROR_OK;
 		}
@@ -463,7 +463,7 @@ static int xtensa_core_reg_set(struct reg *reg, uint8_t *buf)
 		/* If the user updates a potential scratch register, track for conflicts */
 		for (enum xtensa_ar_scratch_set_e s = 0; s < XT_AR_SCRATCH_NUM; s++) {
 			if (strcmp(reg->name, xtensa->scratch_ars[s].chrval) == 0) {
-				LOG_DEBUG("Scratch reg %s [0x%08x] set from gdb", reg->name,
+				LOG_DEBUG("Scratch reg %s [0x%08" PRIx32 "] set from gdb", reg->name,
 					buf_get_u32(reg->value, 0, 32));
 				LOG_DEBUG("scratch_ars mapping: a3/%s, a4/%s",
 					xtensa->scratch_ars[XT_AR_SCRATCH_AR3].chrval,
@@ -574,7 +574,7 @@ int xtensa_window_state_save(struct target *target, uint32_t *woe)
 		xtensa_core_status_check(target);
 		*woe = buf_get_u32(woe_buf, 0, 32);
 		woe_dis = *woe & ~XT_PS_WOE_MSK;
-		LOG_DEBUG("Clearing PS.WOE (0x%08x -> 0x%08x)", *woe, woe_dis);
+		LOG_DEBUG("Clearing PS.WOE (0x%08" PRIx32 " -> 0x%08" PRIx32 ")", *woe, woe_dis);
 		xtensa_queue_dbg_reg_write(xtensa, NARADR_DDR, woe_dis);
 		xtensa_queue_exec_ins(xtensa, XT_INS_RSR(xtensa, XT_SR_DDR, XT_REG_A3));
 		xtensa_queue_exec_ins(xtensa, XT_INS_WSR(xtensa, XT_SR_PS, XT_REG_A3));
@@ -591,7 +591,7 @@ void xtensa_window_state_restore(struct target *target, uint32_t woe)
 		xtensa_queue_dbg_reg_write(xtensa, NARADR_DDR, woe);
 		xtensa_queue_exec_ins(xtensa, XT_INS_RSR(xtensa, XT_SR_DDR, XT_REG_A3));
 		xtensa_queue_exec_ins(xtensa, XT_INS_WSR(xtensa, XT_SR_PS, XT_REG_A3));
-		LOG_DEBUG("Restored PS.WOE (0x%08x)", woe);
+		LOG_DEBUG("Restored PS.WOE (0x%08" PRIx32 ")", woe);
 	}
 }
 
@@ -622,7 +622,7 @@ static int xtensa_write_dirty_registers(struct target *target)
 	 * Start by writing the SFR/user registers. */
 	for (unsigned int i = 0; i < reg_list_size; i++) {
 		struct xtensa_reg_desc *rlist = (i < XT_NUM_REGS) ? xtensa_regs : xtensa_optregs;
-		uint32_t ridx = (i < XT_NUM_REGS) ? i : i - XT_NUM_REGS;
+		unsigned int ridx = (i < XT_NUM_REGS) ? i : i - XT_NUM_REGS;
 		if (reg_list[i].dirty) {
 			if (rlist[ridx].type == XT_REG_SPECIAL ||
 				rlist[ridx].type == XT_REG_USER ||
@@ -636,7 +636,7 @@ static int xtensa_write_dirty_registers(struct target *target)
 				xtensa_queue_dbg_reg_write(xtensa, NARADR_DDR, regval);
 				xtensa_queue_exec_ins(xtensa, XT_INS_RSR(xtensa, XT_SR_DDR, XT_REG_A3));
 				if (reg_list[i].exist) {
-					int reg_num = rlist[ridx].reg_num;
+					unsigned int reg_num = rlist[ridx].reg_num;
 					if (rlist[ridx].type == XT_REG_USER) {
 						xtensa_queue_exec_ins(xtensa, XT_INS_WUR(xtensa, reg_num, XT_REG_A3));
 					} else if (rlist[ridx].type == XT_REG_FR) {
@@ -680,16 +680,16 @@ static int xtensa_write_dirty_registers(struct target *target)
 		for (unsigned int i = XT_REG_IDX_A0; i <= XT_REG_IDX_A15; i++) {
 			unsigned int j = xtensa_windowbase_offset_to_canonical(xtensa, i, windowbase);
 			if (reg_list[i].dirty && reg_list[j].dirty) {
-				if (memcmp(reg_list[i].value, reg_list[j].value, sizeof(uint32_t)) != 0) {
+				if (memcmp(reg_list[i].value, reg_list[j].value, sizeof(xtensa_reg_val_t)) != 0) {
 					bool show_warning = true;
 					if (i == XT_REG_IDX_A3) {
 						if (xtensa->scratch_ars[XT_AR_SCRATCH_A3].intval &&
 							!xtensa->scratch_ars[XT_AR_SCRATCH_AR3].intval) {
 							LOG_DEBUG("AR conflict: a3 -> ar%d", j - XT_REG_IDX_AR0);
-							memcpy(reg_list[j].value, reg_list[i].value, sizeof(uint32_t));
+							memcpy(reg_list[j].value, reg_list[i].value, sizeof(xtensa_reg_val_t));
 						} else {
 							LOG_DEBUG("AR conflict: ar%d -> a3", j - XT_REG_IDX_AR0);
-							memcpy(reg_list[i].value, reg_list[j].value, sizeof(uint32_t));
+							memcpy(reg_list[i].value, reg_list[j].value, sizeof(xtensa_reg_val_t));
 						}
 						show_warning = (xtensa->scratch_ars[XT_AR_SCRATCH_A3].intval &&
 							xtensa->scratch_ars[XT_AR_SCRATCH_AR3].intval);
@@ -697,18 +697,18 @@ static int xtensa_write_dirty_registers(struct target *target)
 						if (xtensa->scratch_ars[XT_AR_SCRATCH_A4].intval &&
 							!xtensa->scratch_ars[XT_AR_SCRATCH_AR4].intval) {
 							LOG_DEBUG("AR conflict: a4 -> ar%d", j - XT_REG_IDX_AR0);
-							memcpy(reg_list[j].value, reg_list[i].value, sizeof(uint32_t));
+							memcpy(reg_list[j].value, reg_list[i].value, sizeof(xtensa_reg_val_t));
 						} else {
 							LOG_DEBUG("AR conflict: ar%d -> a4", j - XT_REG_IDX_AR0);
-							memcpy(reg_list[i].value, reg_list[j].value, sizeof(uint32_t));
+							memcpy(reg_list[i].value, reg_list[j].value, sizeof(xtensa_reg_val_t));
 						}
 						show_warning = (xtensa->scratch_ars[XT_AR_SCRATCH_A4].intval &&
 							xtensa->scratch_ars[XT_AR_SCRATCH_AR4].intval);
 					}
 					if (show_warning) {
 						LOG_WARNING(
-							"Warning: Both A%d [0x%08x] as well as its underlying physical register "
-							"(AR%d) [0x%08x] are dirty and differ in value",
+							"Warning: Both A%d [0x%08" PRIx32 "] as well as its underlying physical register "
+							"(AR%d) [0x%08" PRIx32 "] are dirty and differ in value",
 							i - XT_REG_IDX_A0,
 							buf_get_u32(reg_list[i].value, 0, 32),
 							j - XT_REG_IDX_AR0,
@@ -999,11 +999,10 @@ int xtensa_deassert_reset(struct target *target)
 	struct xtensa *xtensa = target_to_xtensa(target);
 
 	LOG_TARGET_DEBUG(target, "halt=%d", target->reset_halt);
-	if (target->reset_halt) {
+	if (target->reset_halt)
 		xtensa_queue_dbg_reg_write(xtensa,
 			NARADR_DCRSET,
 			OCDDCR_ENABLEOCD | OCDDCR_DEBUGINTERRUPT);
-	}
 	xtensa_queue_pwr_reg_write(xtensa,
 		DMREG_PWRCTL,
 		PWRCTL_JTAGDEBUGUSE | PWRCTL_DEBUGWAKEUP | PWRCTL_MEMWAKEUP | PWRCTL_COREWAKEUP);
@@ -1028,8 +1027,8 @@ int xtensa_fetch_all_regs(struct target *target)
 	struct reg *reg_list = xtensa->core_cache->reg_list;
 	unsigned int reg_list_size = xtensa->core_cache->num_regs;
 	xtensa_reg_val_t cpenable = 0, windowbase = 0;
-	uint32_t *regvals = malloc(reg_list_size * sizeof(uint32_t));
-	uint32_t *dsrs = malloc(reg_list_size * sizeof(uint32_t));
+	uint32_t *regvals = malloc(reg_list_size * sizeof(xtensa_reg_val_t));
+	uint32_t *dsrs = malloc(reg_list_size * sizeof(xtensa_reg_val_t));
 	xtensa_reg_val_t a3;
 	uint32_t woe;
 	uint8_t a3_buf[4];
@@ -1099,7 +1098,7 @@ int xtensa_fetch_all_regs(struct target *target)
 	 * Grab the SFRs and user registers first. We use A3 as a scratch register. */
 	for (unsigned int i = 0; i < reg_list_size; i++) {
 		struct xtensa_reg_desc *rlist = (i < XT_NUM_REGS) ? xtensa_regs : xtensa_optregs;
-		uint32_t ridx = (i < XT_NUM_REGS) ? i : i - XT_NUM_REGS;
+		unsigned int ridx = (i < XT_NUM_REGS) ? i : i - XT_NUM_REGS;
 		if (xtensa_reg_is_readable(rlist[ridx].flags, cpenable) && rlist[ridx].exist) {
 			bool reg_fetched = true;
 			unsigned int reg_num = rlist[ridx].reg_num;
@@ -1549,7 +1548,7 @@ int xtensa_do_step(struct target *target, int current, target_addr_t address, in
 		ps_lowered = true;
 		uint32_t newps = (oldps & ~0xf) | (icountlvl - 1);
 		xtensa_reg_set(target, xtensa->eps_dbglevel_idx, newps);
-		LOG_TARGET_DEBUG(target, "Lowering PS.INTLEVEL to allow stepping: %s <- 0x%08x (was 0x%08x)",
+		LOG_TARGET_DEBUG(target, "Lowering PS.INTLEVEL to allow stepping: %s <- 0x%08" PRIx32 " (was 0x%08" PRIx32 ")",
 			xtensa->core_cache->reg_list[xtensa->eps_dbglevel_idx].name,
 			newps, oldps);
 	}
@@ -1640,7 +1639,7 @@ int xtensa_do_step(struct target *target, int current, target_addr_t address, in
 
 	/* Restore int level */
 	if (ps_lowered) {
-		LOG_DEBUG("Restoring %s after stepping: 0x%08x",
+		LOG_DEBUG("Restoring %s after stepping: 0x%08" PRIx32,
 			xtensa->core_cache->reg_list[xtensa->eps_dbglevel_idx].name,
 			oldps);
 		xtensa_reg_set(target, xtensa->eps_dbglevel_idx, oldps);
@@ -1786,7 +1785,7 @@ int xtensa_read_memory(struct target *target, target_addr_t address, uint32_t si
 	if (res != ERROR_OK) {
 		if (xtensa->probe_lsddr32p != 0) {
 			/* Disable fast memory access instructions and retry before reporting an error */
-			LOG_INFO("%s: Disabling LDDR32.P/SDDR32.P", target_name(target));
+			LOG_TARGET_INFO(target, "Disabling LDDR32.P/SDDR32.P");
 			xtensa->probe_lsddr32p = 0;
 			res = xtensa_read_memory(target, address, size, count, buffer);
 			bswap = false;
@@ -1964,7 +1963,7 @@ int xtensa_write_memory(struct target *target,
 	if (res != ERROR_OK) {
 		if (xtensa->probe_lsddr32p != 0) {
 			/* Disable fast memory access instructions and retry before reporting an error */
-			LOG_INFO("%s: Disabling LDDR32.P/SDDR32.P", target_name(target));
+			LOG_TARGET_INFO(target, "Disabling LDDR32.P/SDDR32.P");
 			xtensa->probe_lsddr32p = 0;
 			res = xtensa_write_memory(target, address, size, count, buffer);
 		} else {
@@ -2033,7 +2032,7 @@ int xtensa_poll(struct target *target)
 
 	int res = xtensa_dm_power_status_read(&xtensa->dbg_mod, PWRSTAT_DEBUGWASRESET | PWRSTAT_COREWASRESET);
 	if (xtensa->dbg_mod.power_status.stat != xtensa->dbg_mod.power_status.stath) {
-		LOG_TARGET_DEBUG(target, "PWRSTAT: read 0x%08x, clear 0x%08lx, reread 0x%08x",
+		LOG_TARGET_DEBUG(target, "PWRSTAT: read 0x%08" PRIx32 ", clear 0x%08" PRIx64 ", reread 0x%08" PRIx32,
 			xtensa->dbg_mod.power_status.stat,
 			PWRSTAT_DEBUGWASRESET | PWRSTAT_COREWASRESET,
 			xtensa->dbg_mod.power_status.stath);
@@ -2061,7 +2060,7 @@ int xtensa_poll(struct target *target)
 		return res;
 	if (prev_dsr != xtensa->dbg_mod.core_status.dsr)
 		LOG_TARGET_DEBUG(target,
-			"DSR has changed: was 0x%08x now 0x%08x",
+			"DSR has changed: was 0x%08" PRIx32 " now 0x%08" PRIx32,
 			prev_dsr,
 			xtensa->dbg_mod.core_status.dsr);
 	if (xtensa->dbg_mod.power_status.stath & PWRSTAT_COREWASRESET) {
@@ -2099,7 +2098,7 @@ int xtensa_poll(struct target *target)
 			} else if (halt_cause & DEBUGCAUSE_DB) {
 				target->debug_reason = DBG_REASON_WATCHPOINT;
 			}
-			LOG_TARGET_DEBUG(target, "Target halted, pc=0x%08" PRIX32 ", debug_reason=%08x, oldstate=%08x",
+			LOG_TARGET_DEBUG(target, "Target halted, pc=0x%08" PRIx32 ", debug_reason=%08" PRIx32 ", oldstate=%08" PRIx32,
 				xtensa_reg_get(target, XT_REG_IDX_PC),
 				target->debug_reason,
 				oldstate);
@@ -2145,7 +2144,7 @@ static int xtensa_update_instruction(struct target *target, target_addr_t addres
 	struct xtensa *xtensa = target_to_xtensa(target);
 	uint32_t issue_ihi = xtensa_is_icacheable(xtensa, address);
 	uint32_t issue_dhwbi = xtensa_is_dcacheable(xtensa, address);
-	uint32_t icache_line_size = issue_ihi ?   xtensa->core_config->icache.line_size : UINT32_MAX;
+	uint32_t icache_line_size = issue_ihi ? xtensa->core_config->icache.line_size : UINT32_MAX;
 	uint32_t dcache_line_size = issue_dhwbi ? xtensa->core_config->dcache.line_size : UINT32_MAX;
 	uint32_t same_ic_line = ((address & (icache_line_size - 1)) + size) <= icache_line_size;
 	uint32_t same_dc_line = ((address & (dcache_line_size - 1)) + size) <= dcache_line_size;
@@ -2630,7 +2629,7 @@ static int xtensa_gdbqc_qxtreg(struct target *target, const char *packet, char *
 		goto xtensa_gdbqc_qxtreg_fail;
 	}
 	uint8_t regbuf[XTENSA_QUERYPKT_RESP_MAX];
-	LOG_DEBUG("TIE reg 0x%08x %s (%d bytes)", regnum, iswrite ? "write" : "read", reglen);
+	LOG_DEBUG("TIE reg 0x%08" PRIx32 " %s (%d bytes)", regnum, iswrite ? "write" : "read", reglen);
 	if (reglen * 2 + 1 > XTENSA_QUERYPKT_RESP_MAX) {
 		LOG_ERROR("TIE register too large");
 		error = XT_QERR_MEM;
@@ -2821,7 +2820,7 @@ int xtensa_gdb_query_custom(struct target *target, const char *packet, char **re
 			error = XT_QERR_MEM;
 			goto xtensa_gdb_query_custom_fail;
 		}
-		LOG_TARGET_DEBUG(target, "Set spill 0x%08x (%d)", xtensa->spill_loc, xtensa->spill_bytes);
+		LOG_TARGET_DEBUG(target, "Set spill 0x%08" PRIx32 " (%d)", xtensa->spill_loc, xtensa->spill_bytes);
 		strcpy(*response_p, "OK");
 		return ERROR_OK;
 	} else if (strncasecmp(packet, "qxtreg", 6) == 0) {
