@@ -1027,15 +1027,18 @@ int xtensa_fetch_all_regs(struct target *target)
 	struct reg *reg_list = xtensa->core_cache->reg_list;
 	unsigned int reg_list_size = xtensa->core_cache->num_regs;
 	xtensa_reg_val_t cpenable = 0, windowbase = 0;
-	uint32_t *regvals = malloc(reg_list_size * sizeof(xtensa_reg_val_t));
+	uint32_t *regvals = calloc(reg_list_size, sizeof(xtensa_reg_val_t));
 	uint32_t *dsrs = malloc(reg_list_size * sizeof(xtensa_reg_val_t));
 	xtensa_reg_val_t a3;
 	uint32_t woe;
 	uint8_t a3_buf[4];
 	bool debug_dsrs = !xtensa->regs_fetched || LOG_LEVEL_IS(LOG_LVL_DEBUG);
+	int res = ERROR_OK;
 
 	if (!regvals || !dsrs) {
 		LOG_TARGET_ERROR(target, "ERROR: Out of memory");
+		if (regvals)
+			free(regvals);
 		return ERROR_FAIL;
 	}
 
@@ -1044,9 +1047,9 @@ int xtensa_fetch_all_regs(struct target *target)
 	/* Save (windowed) A3 so cache matches physical AR3; A3 usable as scratch */
 	xtensa_queue_exec_ins(xtensa, XT_INS_WSR(xtensa, XT_SR_DDR, XT_REG_A3));
 	xtensa_queue_dbg_reg_read(xtensa, NARADR_DDR, a3_buf);
-	int res = xtensa_window_state_save(target, &woe);
+	res = xtensa_window_state_save(target, &woe);
 	if (res != ERROR_OK)
-		return res;
+		goto xtensa_fetch_all_regs_done;
 
 	/* Assume the CPU has just halted. We now want to fill the register cache with all the
 	 * register contents GDB needs. For speed, we pipeline all the read operations, execute them
@@ -1086,7 +1089,7 @@ int xtensa_fetch_all_regs(struct target *target)
 	res = jtag_execute_queue();
 	if (res != ERROR_OK) {
 		LOG_ERROR("Failed to read ARs (%d)!", res);
-		return res;
+		goto xtensa_fetch_all_regs_done;
 	}
 	xtensa_core_status_check(target);
 
@@ -1131,7 +1134,7 @@ int xtensa_fetch_all_regs(struct target *target)
 	res = jtag_execute_queue();
 	if (res != ERROR_OK) {
 		LOG_ERROR("Failed to fetch AR regs!");
-		return res;
+		goto xtensa_fetch_all_regs_done;
 	}
 	xtensa_core_status_check(target);
 
@@ -1147,7 +1150,8 @@ int xtensa_fetch_all_regs(struct target *target)
 				(rlist[ridx].type != XT_REG_OTHER)) {
 				if (buf_get_u32((uint8_t *)&dsrs[i], 0, 32) & OCDDSR_EXECEXCEPTION) {
 					LOG_ERROR("Exception reading %s!", reg_list[i].name);
-					return ERROR_FAIL;
+					res = ERROR_FAIL;
+					goto xtensa_fetch_all_regs_done;
 				}
 			}
 		}
@@ -1214,7 +1218,10 @@ int xtensa_fetch_all_regs(struct target *target)
 	xtensa_reg_set(target, XT_REG_IDX_A3, a3);
 	xtensa_mark_register_dirty(xtensa, XT_REG_IDX_A3);
 	xtensa->regs_fetched = true;
-	return ERROR_OK;
+xtensa_fetch_all_regs_done:
+	free(regvals);
+	free(dsrs);
+	return res;
 }
 
 int xtensa_get_gdb_reg_list(struct target *target,
@@ -2886,6 +2893,13 @@ int xtensa_init_arch_info(struct target *target, struct xtensa *xtensa,
 	 */
 	for (enum xtensa_ar_scratch_set_e s = 0; s < XT_AR_SCRATCH_NUM; s++) {
 		xtensa->scratch_ars[s].chrval = calloc(8, sizeof(char));
+		if (!xtensa->scratch_ars[s].chrval) {
+			for (enum xtensa_ar_scratch_set_e f = s - 1; s >= 0; s--)
+				free(xtensa->scratch_ars[f].chrval);
+			free(xtensa->core_config);
+			LOG_ERROR("Xtensa scratch AR alloc failed\n");
+			return ERROR_FAIL;
+		}
 		xtensa->scratch_ars[s].intval = 0;
 		sprintf(xtensa->scratch_ars[s].chrval, "%s%d",
 			((s == XT_AR_SCRATCH_A3) || (s == XT_AR_SCRATCH_A4)) ? "a" : "ar",
@@ -2939,7 +2953,7 @@ static void xtensa_free_reg_cache(struct target *target)
 
 	if (cache) {
 		register_unlink_cache(&target->reg_cache, cache);
-		for (unsigned int i = 0; i < xtensa->dbregs_num; i++) {
+		for (unsigned int i = 0; i < cache->num_regs; i++) {
 			//free(xtensa->algo_context_backup[i]);
 			free(cache->reg_list[i].value);
 		}
@@ -2949,6 +2963,21 @@ static void xtensa_free_reg_cache(struct target *target)
 	}
 	xtensa->core_cache = NULL;
 	xtensa->algo_context_backup = NULL;
+
+	if (xtensa_empty_regs) {
+		for (unsigned int i = 0; i < xtensa->dbregs_num; i++) {
+			free((void *)xtensa_empty_regs[i].name);
+			free(xtensa_empty_regs[i].value);
+		}
+		free(xtensa_empty_regs);
+	}
+	xtensa_empty_regs = NULL;
+	if (xtensa_optregs) {
+		for (unsigned int i = 0; i < num_xtensa_optregs; i++)
+			free((void *)xtensa_optregs[i].name);
+		free(xtensa_optregs);
+    }
+	xtensa_optregs = NULL;
 }
 
 void xtensa_target_deinit(struct target *target)
@@ -2974,6 +3003,13 @@ void xtensa_target_deinit(struct target *target)
 	free(xtensa->hw_brps);
 	free(xtensa->hw_wps);
 	free(xtensa->sw_brps);
+	if (xtensa->spill_buf) {
+		free(xtensa->spill_buf);
+		xtensa->spill_buf = NULL;
+	}
+	for (enum xtensa_ar_scratch_set_e s = 0; s < XT_AR_SCRATCH_NUM; s++)
+		free(xtensa->scratch_ars[s].chrval);
+	free(xtensa->core_config);
 }
 
 const char *xtensa_get_gdb_arch(struct target *target)

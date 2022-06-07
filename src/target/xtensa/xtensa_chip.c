@@ -159,6 +159,14 @@ static int xtensa_chip_target_create(struct target *target, Jim_Interp *interp)
 	return ERROR_OK;
 }
 
+
+void xtensa_chip_target_deinit(struct target *target)
+{
+	struct xtensa *xtensa = target_to_xtensa(target);
+	xtensa_target_deinit(target);
+	free(xtensa->xtensa_chip);
+}
+
 static int xtensa_chip_examine(struct target *target)
 {
 	return xtensa_examine(target);
@@ -207,6 +215,7 @@ struct target_type xtensa_chip_target = {
 	.target_jim_configure = xtensa_chip_jim_configure,
 	.init_target = xtensa_chip_target_init,
 	.examine = xtensa_chip_examine,
+	.deinit_target = xtensa_chip_target_deinit,
 
 	.gdb_query_custom = xtensa_gdb_query_custom,
 
