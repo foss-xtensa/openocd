@@ -26,7 +26,6 @@
 #include <target/target_type.h>
 #include "esp_xtensa.h"
 #include "esp32s2.h"
-#include <target/xtensa/xtensa_fileio.h>
 
 /* Overall memory map
  * TODO: read memory configuration from target registers */
@@ -216,19 +215,16 @@ static int esp32s2_soc_reset(struct target *target)
 
 	/* In order to write to peripheral registers, target must be halted first */
 	if (target->state != TARGET_HALTED) {
-		LOG_DEBUG("%s: Target not halted before SoC reset, trying to halt it first",
-			__func__);
+		LOG_TARGET_DEBUG(target, "Target not halted before SoC reset, trying to halt it first");
 		xtensa_halt(target);
 		res = target_wait_state(target, TARGET_HALTED, 1000);
 		if (res != ERROR_OK) {
-			LOG_DEBUG(
-				"%s: Couldn't halt target before SoC reset, trying to do reset-halt",
-				__func__);
+			LOG_TARGET_DEBUG(target, "Couldn't halt target before SoC reset, trying to do reset-halt");
 			res = xtensa_assert_reset(target);
 			if (res != ERROR_OK) {
-				LOG_ERROR(
-					"%s: Couldn't halt target before SoC reset! (xtensa_assert_reset returned %d)",
-					__func__,
+				LOG_TARGET_ERROR(
+					target,
+					"Couldn't halt target before SoC reset! (xtensa_assert_reset returned %d)",
 					res);
 				return res;
 			}
@@ -239,9 +235,9 @@ static int esp32s2_soc_reset(struct target *target)
 			res = xtensa_deassert_reset(target);
 			target->reset_halt = reset_halt_save;
 			if (res != ERROR_OK) {
-				LOG_ERROR(
-					"%s: Couldn't halt target before SoC reset! (xtensa_deassert_reset returned %d)",
-					__func__,
+				LOG_TARGET_ERROR(
+					target,
+					"Couldn't halt target before SoC reset! (xtensa_deassert_reset returned %d)",
 					res);
 				return res;
 			}
@@ -250,7 +246,7 @@ static int esp32s2_soc_reset(struct target *target)
 			xtensa_halt(target);
 			res = target_wait_state(target, TARGET_HALTED, 1000);
 			if (res != ERROR_OK) {
-				LOG_ERROR("%s: Couldn't halt target before SoC reset", __func__);
+				LOG_TARGET_ERROR(target, "Couldn't halt target before SoC reset");
 				return res;
 			}
 		}
@@ -314,7 +310,7 @@ static int esp32s2_soc_reset(struct target *target)
 	xtensa_halt(target);
 	res = target_wait_state(target, TARGET_HALTED, 1000);
 	if (res != ERROR_OK) {
-		LOG_ERROR("%s: Couldn't halt target before SoC reset", __func__);
+		LOG_TARGET_ERROR(target, "Couldn't halt target before SoC reset");
 		return res;
 	}
 	/* Unstall CPU */
@@ -483,10 +479,8 @@ static int esp32s2_target_create(struct target *target, Jim_Interp *interp)
 
 static const struct command_registration esp32s2_command_handlers[] = {
 	{
-		.name = "xtensa",
 		.mode = COMMAND_ANY,
 		.help = "Xtensa commands group",
-		.usage = "",
 		.chain = xtensa_command_handlers,
 	},
 	COMMAND_REGISTRATION_DONE
@@ -517,6 +511,7 @@ struct target_type esp32s2_target = {
 
 	.checksum_memory = xtensa_checksum_memory,
 
+	.get_gdb_arch = xtensa_get_gdb_arch,
 	.get_gdb_reg_list = xtensa_get_gdb_reg_list,
 
 	.add_breakpoint = esp_xtensa_breakpoint_add,
@@ -533,7 +528,4 @@ struct target_type esp32s2_target = {
 	.gdb_query_custom = xtensa_gdb_query_custom,
 
 	.commands = esp32s2_command_handlers,
-
-	.get_gdb_fileio_info = xtensa_get_gdb_fileio_info,
-	.gdb_fileio_end = xtensa_gdb_fileio_end,
 };

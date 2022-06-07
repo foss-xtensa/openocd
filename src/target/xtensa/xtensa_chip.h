@@ -29,18 +29,10 @@
 #include "xtensa.h"
 #include "xtensa_debug_module.h"
 
-/* 0 - don't care, 1 - TMS low, 2 - TMS high */
-enum flash_bootstrap {
-	FBS_DONTCARE = 0,
-	FBS_TMSLOW,
-	FBS_TMSHIGH,
-};
-
 struct xtensa_chip_common {
 	struct xtensa xtensa;
 
-	/* TODO: remove following fields */
-	enum flash_bootstrap flash_bootstrap;
+	/* Chip-specific extensions can be added here */
 };
 
 static inline struct xtensa_chip_common *target_to_xtensa_chip(struct target *target)

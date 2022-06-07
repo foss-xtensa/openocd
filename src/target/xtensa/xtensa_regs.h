@@ -82,45 +82,45 @@ enum xtensa_reg_id {
 
 typedef uint32_t xtensa_reg_val_t;
 
-#define XT_NUM_A_REGS	16
+#define XT_NUM_A_REGS   16
 
 enum xtensa_reg_type {
-	XT_REG_GENERAL	= 0,	/* General-purpose register; part of the windowed register set */
-	XT_REG_USER		= 1,	/* User register, needs RUR to read */
-	XT_REG_SPECIAL	= 2,	/* Special register, needs RSR to read */
-	XT_REG_DEBUG	= 3,	/* Register used for the debug interface. Don't mess with this. */
-	XT_REG_RELGEN	= 4,	/* Relative general address. Points to the absolute
-	                  		 * addresses plus the window index */
-	XT_REG_FR		= 5,	/* Floating-point register */
-	XT_REG_TIE		= 6,	/* TIE (custom) register */
-	XT_REG_OTHER	= 7,	/* Other (typically legacy) register */
+	XT_REG_GENERAL = 0,		/* General-purpose register; part of the windowed register set */
+	XT_REG_USER = 1,		/* User register, needs RUR to read */
+	XT_REG_SPECIAL = 2,		/* Special register, needs RSR to read */
+	XT_REG_DEBUG = 3,		/* Register used for the debug interface. Don't mess with this. */
+	XT_REG_RELGEN = 4,		/* Relative general address. Points to the absolute addresses
+							 * plus the window index */
+	XT_REG_FR = 5,			/* Floating-point register */
+	XT_REG_TIE = 6,			/* TIE (custom) register */
+	XT_REG_OTHER = 7,		/* Other (typically legacy) register */
 	XT_REG_TYPE_NUM,
 
 	/* enum names must be one of the above types + _VAL or _MASK */
-	XT_REG_GENERAL_MASK		= 0xFFC0,
-	XT_REG_GENERAL_VAL		= 0x0100,
-	XT_REG_USER_MASK		= 0xFF00,
-	XT_REG_USER_VAL			= 0x0300,
-	XT_REG_SPECIAL_MASK		= 0xFF00,
-	XT_REG_SPECIAL_VAL		= 0x0200,
-	XT_REG_DEBUG_MASK		= 0xFF00,
-	XT_REG_DEBUG_VAL		= 0x0200,
-	XT_REG_RELGEN_MASK		= 0xFFE0,
-	XT_REG_RELGEN_VAL		= 0x0000,
-	XT_REG_FR_MASK			= 0xFFF0,
-	XT_REG_FR_VAL			= 0x0030,
-	XT_REG_TIE_MASK			= 0xF000,
-	XT_REG_TIE_VAL			= 0xF000,	/* unused */
-	XT_REG_OTHER_MASK		= 0xFFFF,
-	XT_REG_OTHER_VAL		= 0xF000,	/* unused */
+	XT_REG_GENERAL_MASK             = 0xFFC0,
+	XT_REG_GENERAL_VAL              = 0x0100,
+	XT_REG_USER_MASK                = 0xFF00,
+	XT_REG_USER_VAL                 = 0x0300,
+	XT_REG_SPECIAL_MASK             = 0xFF00,
+	XT_REG_SPECIAL_VAL              = 0x0200,
+	XT_REG_DEBUG_MASK               = 0xFF00,
+	XT_REG_DEBUG_VAL                = 0x0200,
+	XT_REG_RELGEN_MASK              = 0xFFE0,
+	XT_REG_RELGEN_VAL               = 0x0000,
+	XT_REG_FR_MASK                  = 0xFFF0,
+	XT_REG_FR_VAL                   = 0x0030,
+	XT_REG_TIE_MASK                 = 0xF000,
+	XT_REG_TIE_VAL                  = 0xF000,	/* unused */
+	XT_REG_OTHER_MASK               = 0xFFFF,
+	XT_REG_OTHER_VAL                = 0xF000,	/* unused */
 
-	XT_REG_INDEX_MASK		= 0x00FF
+	XT_REG_INDEX_MASK               = 0x00FF
 };
 
 enum xtensa_reg_flags {
-	XT_REGF_NOREAD	= 0x01,	/* Register is write-only */
-	XT_REGF_COPROC0	= 0x02,	/* Can't be read if coproc0 isn't enabled */
-	XT_REGF_MASK    = 0x03
+	XT_REGF_NOREAD = 0x01,	/* Register is write-only */
+	XT_REGF_COPROC0 = 0x02,	/* Can't be read if coproc0 isn't enabled */
+	XT_REGF_MASK = 0x03
 };
 
 struct xtensa_reg_desc {

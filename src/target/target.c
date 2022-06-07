@@ -57,6 +57,7 @@
 #include "transport/transport.h"
 #include "arm_cti.h"
 #include "smp.h"
+#include "semihosting_common.h"
 
 /* default halt wait timeout (ms) */
 #define DEFAULT_HALT_TIMEOUT 5000
@@ -1518,20 +1519,6 @@ int target_gdb_fileio_end(struct target *target, int retcode, int fileio_errno, 
 	return target->type->gdb_fileio_end(target, retcode, fileio_errno, ctrl_c);
 }
 
-bool target_supports_gdb_query_custom(struct target *target)
-{
-	return target->type->gdb_query_custom;
-}
-
-int target_gdb_query_custom(struct target *target, const char *packet, char **response_p)
-{
-	if (!target->type->gdb_query_custom) {
-		LOG_ERROR("Target %s doesn't support gdb_query_custom", target_name(target));
-		return ERROR_FAIL;
-	}
-	return target->type->gdb_query_custom(target, packet, response_p);
-}
-
 target_addr_t target_address_max(struct target *target)
 {
 	unsigned bits = target_address_bits(target);
@@ -2276,6 +2263,8 @@ static void target_destroy(struct target *target)
 	if (target->type->deinit_target)
 		target->type->deinit_target(target);
 
+	if (target->semihosting)
+		free(target->semihosting->basedir);
 	free(target->semihosting);
 
 	jtag_unregister_event_callback(jtag_enable_callback, target);
@@ -2605,7 +2594,7 @@ int target_blank_check_memory(struct target *target,
 	}
 
 	if (!target->type->blank_check_memory)
-		return ERROR_TARGET_RESOURCE_NOT_AVAILABLE;
+		return ERROR_NOT_IMPLEMENTED;
 
 	return target->type->blank_check_memory(target, blocks, num_blocks, erased_value);
 }
@@ -5240,10 +5229,18 @@ static int target_jim_set_reg(Jim_Interp *interp, int argc,
 	}
 
 	int tmp;
+#if JIM_VERSION >= 80
 	Jim_Obj **dict = Jim_DictPairs(interp, argv[1], &tmp);
 
 	if (!dict)
 		return JIM_ERR;
+#else
+	Jim_Obj **dict;
+	int ret = Jim_DictPairs(interp, argv[1], &dict, &tmp);
+
+	if (ret != JIM_OK)
+		return ret;
+#endif
 
 	const unsigned int length = tmp;
 	struct command_context *cmd_ctx = current_command_context(interp);
@@ -6451,6 +6448,7 @@ static int jim_target_smp(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 	int i;
 	const char *targetname;
 	int retval, len;
+	static int smp_group = 1;
 	struct target *target = NULL;
 	struct target_list *head, *new;
 
@@ -6482,12 +6480,13 @@ static int jim_target_smp(Jim_Interp *interp, int argc, Jim_Obj *const *argv)
 	/*  now parse the list of cpu and put the target in smp mode*/
 	foreach_smp_target(head, lh) {
 		target = head->target;
-		target->smp = 1;
+		target->smp = smp_group;
 		target->smp_targets = lh;
 	}
+	smp_group++;
 
 	if (target && target->rtos)
-		retval = rtos_smp_init(head->target);
+		retval = rtos_smp_init(target);
 
 	return retval;
 }

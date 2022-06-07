@@ -200,7 +200,7 @@ struct target {
 	bool rtos_auto_detect;				/* A flag that indicates that the RTOS has been specified as "auto"
 										 * and must be detected when symbols are offered */
 	struct backoff_timer backoff;
-	int smp;							/* add some target attributes for smp support */
+	int smp;							/* Unique non-zero number for each SMP group */
 	struct list_head *smp_targets;		/* list all targets in this smp group/cluster
 										 * The head of the list is shared between the
 										 * cluster, thus here there is a pointer */
@@ -689,16 +689,6 @@ int target_get_gdb_fileio_info(struct target *target, struct gdb_fileio_info *fi
 int target_gdb_fileio_end(struct target *target, int retcode, int fileio_errno, bool ctrl_c);
 
 /**
- * Check if target handles custom GDB query packets.
- *
- * Some targets do not implement the necessary code required by GDB.
- */
-bool target_supports_gdb_query_custom(struct target *target);
-
-/** Process GDB target-specific query packet if supported. */
-int target_gdb_query_custom(struct target *target, const char *packet, char **response_p);
-
-/**
  * Return the highest accessible address for this target.
  */
 target_addr_t target_address_max(struct target *target);
@@ -823,6 +813,6 @@ int target_profiling_default(struct target *target, uint32_t *samples, uint32_t
 
 extern bool get_target_reset_nag(void);
 
-#define TARGET_DEFAULT_POLLING_INTERVAL		10
+#define TARGET_DEFAULT_POLLING_INTERVAL		100
 
 #endif /* OPENOCD_TARGET_TARGET_H */

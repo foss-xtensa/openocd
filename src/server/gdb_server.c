@@ -1334,7 +1334,7 @@ static int gdb_set_registers_packet(struct connection *connection,
 	packet_p = packet;
 	for (i = 0; i < reg_list_size; i++) {
 		uint8_t *bin_buf;
-		if (reg_list[i] == NULL || reg_list[i]->exist == false)
+		if (!reg_list[i] || !reg_list[i]->exist)
             continue;
 		int chars = (DIV_ROUND_UP(reg_list[i]->size, 8) * 2);
 
@@ -1388,7 +1388,7 @@ static int gdb_get_register_packet(struct connection *connection,
 	if (retval != ERROR_OK)
 		return gdb_error(connection, retval);
 
-	if ((reg_list_size <= reg_num) || (!reg_list[reg_num])) {
+	if ((reg_list_size <= reg_num) || !reg_list[reg_num]) {
 		LOG_ERROR("gdb requested a non-existing register (reg_num=%d)", reg_num);
 		return ERROR_SERVER_REMOTE_CLOSED;
 	}
@@ -1450,7 +1450,7 @@ static int gdb_set_register_packet(struct connection *connection,
 		return gdb_error(connection, retval);
 	}
 
-	if ((reg_list_size <= reg_num) || (!reg_list[reg_num])) {
+	if ((reg_list_size <= reg_num) || !reg_list[reg_num]) {
 		LOG_ERROR("gdb requested a non-existing register (reg_num=%d)", reg_num);
 		free(bin_buf);
 		free(reg_list);
@@ -2755,6 +2755,7 @@ static int gdb_query_packet(struct connection *connection,
 
 	if (strncmp(packet, "qRcmd,", 6) == 0) {
 		if (packet_size > 6) {
+			Jim_Interp *interp = cmd_ctx->interp;
 			char *cmd;
 			cmd = malloc((packet_size - 6) / 2 + 1);
 			size_t len = unhexify((uint8_t *)cmd, packet + 6, (packet_size - 6) / 2);
@@ -2766,20 +2767,31 @@ static int gdb_query_packet(struct connection *connection,
 			/* some commands need to know the GDB connection, make note of current
 			 * GDB connection. */
 			current_gdb_connection = gdb_connection;
-			struct target *saved_target_override = cmd_ctx->current_target_override;
-			cmd_ctx->current_target_override = target;
 
-			int retval = Jim_EvalObj(cmd_ctx->interp, Jim_NewStringObj(cmd_ctx->interp, cmd, -1));
+			struct target *saved_target_override = cmd_ctx->current_target_override;
+			cmd_ctx->current_target_override = NULL;
+
+			struct command_context *old_context = Jim_GetAssocData(interp, "context");
+			Jim_DeleteAssocData(interp, "context");
+			int retval = Jim_SetAssocData(interp, "context", NULL, cmd_ctx);
+			if (retval == JIM_OK) {
+				retval = Jim_EvalObj(interp, Jim_NewStringObj(interp, cmd, -1));
+				Jim_DeleteAssocData(interp, "context");
+			}
+			int inner_retval = Jim_SetAssocData(interp, "context", NULL, old_context);
+			if (retval == JIM_OK)
+				retval = inner_retval;
 
 			cmd_ctx->current_target_override = saved_target_override;
+
 			current_gdb_connection = NULL;
 			target_call_timer_callbacks_now();
 			gdb_connection->output_flag = GDB_OUTPUT_NO;
 			free(cmd);
 			if (retval == JIM_RETURN)
-				retval = cmd_ctx->interp->returnCode;
+				retval = interp->returnCode;
 			int lenmsg;
-			const char *cretmsg = Jim_GetString(Jim_GetResult(cmd_ctx->interp), &lenmsg);
+			const char *cretmsg = Jim_GetString(Jim_GetResult(interp), &lenmsg);
 			char *retmsg;
 			if (lenmsg && cretmsg[lenmsg - 1] != '\n') {
 				retmsg = alloc_printf("%s\n", cretmsg);
@@ -2959,9 +2971,9 @@ static int gdb_query_packet(struct connection *connection,
 		gdb_connection->noack_mode = 1;
 		gdb_put_packet(connection, "OK", 2);
 		return ERROR_OK;
-	} else if (target_supports_gdb_query_custom(target)) {
+	} else if (target->type->gdb_query_custom) {
 		char *buffer = NULL;
-		int ret = target_gdb_query_custom(target, packet, &buffer);
+		int ret = target->type->gdb_query_custom(target, packet, &buffer);
 		gdb_put_packet(connection, buffer, strlen(buffer));
 		return ret;
 	}
@@ -3667,12 +3679,14 @@ static int gdb_input_inner(struct connection *connection)
 					break;
 
 				case 'j':
+					/* DEPRECATED */
 					/* packet supported only by smp target i.e cortex_a.c*/
 					/* handle smp packet replying coreid played to gbd */
 					gdb_read_smp_packet(connection, packet, packet_size);
 					break;
 
 				case 'J':
+					/* DEPRECATED */
 					/* packet supported only by smp target i.e cortex_a.c */
 					/* handle smp packet setting coreid to be played at next
 					 * resume to gdb */

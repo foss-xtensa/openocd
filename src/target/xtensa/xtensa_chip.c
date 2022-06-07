@@ -29,14 +29,13 @@
 #include <target/arm_adi_v5.h>
 #include <rtos/rtos.h>
 #include "xtensa_chip.h"
-#include "xtensa_fileio.h"
 
 
 int xtensa_chip_init_arch_info(struct target *target, void *arch_info, 
 		struct xtensa_debug_module_config *dm_cfg)
 {
 	struct xtensa_chip_common *xtensa_chip = (struct xtensa_chip_common *)arch_info;
-	if ((dm_cfg->queue_tdi_idle == NULL) && (dm_cfg->tap != NULL)) {
+	if (!dm_cfg->queue_tdi_idle && dm_cfg->tap) {
 		dm_cfg->queue_tdi_idle = xtensa_chip_queue_tdi_idle;
 		dm_cfg->queue_tdi_idle_arg = target;
 	}
@@ -49,45 +48,9 @@ int xtensa_chip_init_arch_info(struct target *target, void *arch_info,
 	return ERROR_OK;
 }
 
-static int xtensa_chip_handle_target_event(struct target *target, enum target_event event, void *priv)
-{
-	if (target != priv)
-		return ERROR_OK;
-
-	LOG_DEBUG("%d", event);
-
-	int ret = xtensa_handle_target_event(target, event, priv);
-	if (ret != ERROR_OK)
-		return ret;
-
-	switch (event) {
-	case TARGET_EVENT_HALTED:
-		/* debug stubs not supported */
-		break;
-	case TARGET_EVENT_GDB_DETACH:
-		/* Flash BP not supported */
-		break;
-	default:
-		break;
-	}
-	return ERROR_OK;
-}
-
 int xtensa_chip_target_init(struct command_context *cmd_ctx, struct target *target)
 {
-	int ret = xtensa_target_init(cmd_ctx, target);
-	if (ret != ERROR_OK)
-		return ret;
-
-	ret = target_register_event_callback(xtensa_chip_handle_target_event, target);
-	if (ret != ERROR_OK)
-		return ret;
-
-	ret = xtensa_fileio_init(target);
-	if (ret != ERROR_OK)
-		return ret;
-
-	return ERROR_OK;
+	return xtensa_target_init(cmd_ctx, target);
 }
 
 int xtensa_chip_arch_state(struct target *target)
@@ -107,7 +70,6 @@ static int xtensa_chip_poll(struct target *target)
 		if (old_state == TARGET_DEBUG_RUNNING)
 			target_call_event_callbacks(target, TARGET_EVENT_DEBUG_HALTED);
 		else {
-			xtensa_fileio_detect_proc(target);
 			target_call_event_callbacks(target, TARGET_EVENT_HALTED);
 		}
 	}
@@ -123,11 +85,12 @@ allow the power to an 1.8V flash chip to be raised to 3.3V, or the other way aro
 */
 void xtensa_chip_queue_tdi_idle(struct target *target)
 {
-	struct xtensa *xtensa = target_to_xtensa(target);
-	struct xtensa_chip_common *xtensa_chip = xtensa->xtensa_chip;
-	static uint8_t value;
+	static uint32_t value = 0;
 	uint8_t t[4] = { 0, 0, 0, 0 };
 
+#if 0
+	struct xtensa *xtensa = target_to_xtensa(target);
+	struct xtensa_chip_common *xtensa_chip = xtensa->xtensa_chip;
 	if (xtensa_chip->flash_bootstrap == FBS_TMSLOW) {
 		/*Make sure tdi is 0 at the exit of queue execution */
 		value = 0;
@@ -136,8 +99,9 @@ void xtensa_chip_queue_tdi_idle(struct target *target)
 		value = 1;
 	} else
 		return;
+#endif
 
-	/*Scan out 1 bit, do not move from IRPAUSE after we're done. */
+	/* Scan out 1 bit, do not move from IRPAUSE after we're done. */
 	buf_set_u32(t, 0, 1, value);
 	jtag_add_plain_ir_scan(1, t, NULL, TAP_IRPAUSE);
 }
@@ -145,8 +109,11 @@ void xtensa_chip_queue_tdi_idle(struct target *target)
 static int xtensa_chip_virt2phys(struct target *target,
 	target_addr_t virtual, target_addr_t *physical)
 {
-	*physical = virtual;
-	return ERROR_OK;
+	if (physical) {
+		*physical = virtual;
+		return ERROR_OK;
+	}
+	return ERROR_FAIL;
 }
 
 static const struct xtensa_debug_ops xtensa_chip_dm_dbg_ops = {
@@ -168,25 +135,13 @@ static int xtensa_chip_target_create(struct target *target, Jim_Interp *interp)
 		.tap = NULL,
 		.queue_tdi_idle = NULL,
 		.queue_tdi_idle_arg = NULL,
-		.dap = NULL,
-		.debug_ap = NULL,
-		.debug_apsel = DP_APSEL_INVALID,
-		.ap_offset = 0,
 	};
 
-	struct adiv5_private_config *pc;
-	pc = (struct adiv5_private_config *)target->private_config;
-	if (adiv5_verify_config(pc) == ERROR_OK) {
-		xtensa_chip_dm_cfg.dap = pc->dap;
-		xtensa_chip_dm_cfg.debug_apsel = pc->ap_num;
-		LOG_DEBUG("DAP: ap_num %d DAP %p", pc->ap_num, pc->dap);
-	} else {
-		xtensa_chip_dm_cfg.tap = target->tap;
-		LOG_DEBUG("JTAG: %s:%s pos %d", target->tap->chip, target->tap->tapname, target->tap->abs_chain_position);
-	}
+	xtensa_chip_dm_cfg.tap = target->tap;
+	LOG_DEBUG("JTAG: %s:%s pos %d", target->tap->chip, target->tap->tapname, target->tap->abs_chain_position);
 
 	struct xtensa_chip_common *xtensa_chip = calloc(1, sizeof(struct xtensa_chip_common));
-	if (xtensa_chip == NULL) {
+	if (!xtensa_chip) {
 		LOG_ERROR("Failed to alloc chip-level memory!");
 		return ERROR_FAIL;
 	}
@@ -206,27 +161,13 @@ static int xtensa_chip_target_create(struct target *target, Jim_Interp *interp)
 
 static int xtensa_chip_examine(struct target *target)
 {
-	struct xtensa *xtensa = target_to_xtensa(target);
-	int retval = xtensa_dm_examine(&xtensa->dbg_mod);
-	if (retval == ERROR_OK) {
-		retval = xtensa_examine(target);
-	}
-	return retval;
+	return xtensa_examine(target);
 }
 
 int xtensa_chip_jim_configure(struct target *target, struct jim_getopt_info *goi)
 {
-	static bool dap_configured = false;
-	int ret = adiv5_jim_configure(target, goi);
-	if (ret == JIM_OK) {
-		LOG_DEBUG("xtensa '-dap' target option found");
-		dap_configured = true;
-	}
-	if (!dap_configured) {
-		LOG_DEBUG("xtensa '-dap' target option not yet found, assuming JTAG...");
-		target->has_dap = false;
-	}
-	return ret;
+	target->has_dap = false;
+	return JIM_CONTINUE;
 }
 
 /** Methods for generic example of Xtensa-based chip-level targets. */
@@ -242,7 +183,7 @@ struct target_type xtensa_chip_target = {
 
 	.assert_reset = xtensa_assert_reset,
 	.deassert_reset = xtensa_deassert_reset,
-    .soft_reset_halt = xtensa_soft_reset_halt,
+	.soft_reset_halt = xtensa_soft_reset_halt,
 
 	.virt2phys = xtensa_chip_virt2phys,
 	.mmu = xtensa_mmu_is_enabled,
@@ -270,7 +211,4 @@ struct target_type xtensa_chip_target = {
 	.gdb_query_custom = xtensa_gdb_query_custom,
 
 	.commands = xtensa_command_handlers,
-
-	.get_gdb_fileio_info = xtensa_get_gdb_fileio_info,
-	.gdb_fileio_end = xtensa_gdb_fileio_end,
 };
