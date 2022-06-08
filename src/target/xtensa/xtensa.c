@@ -2039,7 +2039,7 @@ int xtensa_poll(struct target *target)
 
 	int res = xtensa_dm_power_status_read(&xtensa->dbg_mod, PWRSTAT_DEBUGWASRESET | PWRSTAT_COREWASRESET);
 	if (xtensa->dbg_mod.power_status.stat != xtensa->dbg_mod.power_status.stath) {
-		LOG_TARGET_DEBUG(target, "PWRSTAT: read 0x%08" PRIx32 ", clear 0x%08" PRIx64 ", reread 0x%08" PRIx32,
+		LOG_TARGET_DEBUG(target, "PWRSTAT: read 0x%08" PRIx32 ", clear 0x%08lx, reread 0x%08" PRIx32,
 			xtensa->dbg_mod.power_status.stat,
 			PWRSTAT_DEBUGWASRESET | PWRSTAT_COREWASRESET,
 			xtensa->dbg_mod.power_status.stath);
