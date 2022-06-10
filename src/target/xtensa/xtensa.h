@@ -363,7 +363,6 @@ int xtensa_breakpoint_add(struct target *target, struct breakpoint *breakpoint);
 int xtensa_breakpoint_remove(struct target *target, struct breakpoint *breakpoint);
 int xtensa_watchpoint_add(struct target *target, struct watchpoint *watchpoint);
 int xtensa_watchpoint_remove(struct target *target, struct watchpoint *watchpoint);
-int xtensa_handle_target_event(struct target *target, enum target_event event, void *priv);
 void xtensa_set_permissive_mode(struct target *target, bool state);
 const char *xtensa_get_gdb_arch(struct target *target);
 int xtensa_gdb_query_custom(struct target *target, const char *packet, char **response_p);
