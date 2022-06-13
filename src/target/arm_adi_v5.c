@@ -1552,8 +1552,10 @@ static int rtp_rom_loop(const struct rtp_ops *ops,
 		}
 		if (retval == ERROR_OK)
 			retval = dap_run(ap->dap);
-		if (retval != ERROR_OK)
+		if (retval != ERROR_OK) {
 			LOG_DEBUG("Failed read ROM table entry");
+			return retval;
+		}
 
 		if (width == 64) {
 			romentry = (((uint64_t)romentry_high) << 32) | romentry_low;
@@ -1641,11 +1643,12 @@ static int rtp_ap(const struct rtp_ops *ops, struct adiv5_ap *ap)
 {
 	int retval;
 	uint32_t apid;
-	target_addr_t dbgbase = 0; /* GCC complains can be used uninitialized */
-	target_addr_t invalid_entry;
+	target_addr_t dbgbase, invalid_entry;
 
 	/* Now we read ROM table ID registers, ref. ARM IHI 0029B sec  */
 	retval = dap_get_debugbase(ap, &dbgbase, &apid);
+	if (retval != ERROR_OK)
+		return retval;
 	retval = rtp_ops_mem_ap_header(ops, retval, ap, dbgbase, apid);
 	if (retval != ERROR_OK)
 		return retval;
@@ -1935,6 +1938,8 @@ static const struct jim_nvp nvp_config_opts[] = {
 static int adiv5_jim_spot_configure(struct jim_getopt_info *goi,
 		struct adiv5_dap **dap_p, int *ap_num_p, uint32_t *base_p)
 {
+	assert(dap_p && ap_num_p);
+
 	if (!goi->argc)
 		return JIM_OK;
 
@@ -2039,6 +2044,10 @@ int adiv5_jim_configure(struct target *target, struct jim_getopt_info *goi)
 	pc = (struct adiv5_private_config *)target->private_config;
 	if (!pc) {
 		pc = calloc(1, sizeof(struct adiv5_private_config));
+		if (!pc) {
+			LOG_ERROR("Out of memory");
+			return JIM_ERR;
+		}
 		pc->ap_num = DP_APSEL_INVALID;
 		target->private_config = pc;
 	}
