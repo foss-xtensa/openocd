@@ -552,14 +552,13 @@ int xtensa_window_state_save(struct target *target, uint32_t *woe)
 	struct xtensa *xtensa = target_to_xtensa(target);
 	int woe_dis;
 	uint8_t woe_buf[4];
-	int res;
 
 	if (xtensa->core_config->windowed) {
 		/* Save PS (LX) and disable window overflow exceptions prior to AR save */
 		xtensa_queue_exec_ins(xtensa, XT_INS_RSR(xtensa, XT_SR_PS, XT_REG_A3));
 		xtensa_queue_exec_ins(xtensa, XT_INS_WSR(xtensa, XT_SR_DDR, XT_REG_A3));
 		xtensa_queue_dbg_reg_read(xtensa, NARADR_DDR, woe_buf);
-		res = jtag_execute_queue();
+		int res = jtag_execute_queue();
 		if (res != ERROR_OK) {
 			LOG_ERROR("Failed to read PS (%d)!", res);
 			return res;
@@ -1019,21 +1018,19 @@ int xtensa_fetch_all_regs(struct target *target)
 	struct xtensa *xtensa = target_to_xtensa(target);
 	struct reg *reg_list = xtensa->core_cache->reg_list;
 	unsigned int reg_list_size = xtensa->core_cache->num_regs;
-	xtensa_reg_val_t cpenable = 0, windowbase = 0;
-	union xtensa_reg_val_u *regvals = calloc(reg_list_size, sizeof(union xtensa_reg_val_u));
-	union xtensa_reg_val_u *dsrs = malloc(reg_list_size * sizeof(union xtensa_reg_val_u));
-	xtensa_reg_val_t a3;
+	xtensa_reg_val_t cpenable = 0, windowbase = 0, a3;
 	uint32_t woe;
 	uint8_t a3_buf[4];
 	bool debug_dsrs = !xtensa->regs_fetched || LOG_LEVEL_IS(LOG_LVL_DEBUG);
-	int res = ERROR_OK;
 
+	union xtensa_reg_val_u *regvals = calloc(reg_list_size, sizeof(*regvals));
 	if (!regvals) {
-		LOG_TARGET_ERROR(target, "ERROR: Out of memory");
+		LOG_TARGET_ERROR(target, "unable to allocate memory for regvals!");
 		return ERROR_FAIL;
 	}
+	union xtensa_reg_val_u *dsrs = calloc(reg_list_size, sizeof(*dsrs));
 	if (!dsrs) {
-		LOG_TARGET_ERROR(target, "ERROR: Out of memory");
+		LOG_TARGET_ERROR(target, "unable to allocate memory for dsrs!");
 		free(regvals);
 		return ERROR_FAIL;
 	}
@@ -1043,7 +1040,7 @@ int xtensa_fetch_all_regs(struct target *target)
 	/* Save (windowed) A3 so cache matches physical AR3; A3 usable as scratch */
 	xtensa_queue_exec_ins(xtensa, XT_INS_WSR(xtensa, XT_SR_DDR, XT_REG_A3));
 	xtensa_queue_dbg_reg_read(xtensa, NARADR_DDR, a3_buf);
-	res = xtensa_window_state_save(target, &woe);
+	int res = xtensa_window_state_save(target, &woe);
 	if (res != ERROR_OK)
 		goto xtensa_fetch_all_regs_done;
 
@@ -3671,7 +3668,7 @@ COMMAND_HANDLER(xtensa_cmd_mask_interrupts)
 
 COMMAND_HELPER(xtensa_cmd_smpbreak_do, struct target *target)
 {
-	int res = ERROR_OK;
+	int res;
 	uint32_t val = 0;
 
 	if (CMD_ARGC >= 1) {
@@ -3938,7 +3935,6 @@ static const struct command_registration xtensa_any_command_handlers[] = {
 		.mode = COMMAND_ANY,
 		.help = "Configure Xtensa MPU option",
 		.usage = "<num FG seg> <min seg size> <lockable> <executeonly>",
-
 	},
 	{
 		.name = "xtreg",
@@ -3946,7 +3942,6 @@ static const struct command_registration xtensa_any_command_handlers[] = {
 		.mode = COMMAND_ANY,
 		.help = "Configure Xtensa register",
 		.usage = "<regname> <regnum>",
-
 	},
 	{
 		.name = "xtregs",
@@ -3954,7 +3949,6 @@ static const struct command_registration xtensa_any_command_handlers[] = {
 		.mode = COMMAND_ANY,
 		.help = "Configure number of Xtensa registers",
 		.usage = "<numregs>",
-
 	},
 	{
 		.name = "xtregfmt",
@@ -3962,7 +3956,6 @@ static const struct command_registration xtensa_any_command_handlers[] = {
 		.mode = COMMAND_ANY,
 		.help = "Configure format of Xtensa register map",
 		.usage = "<numgregs>",
-
 	},
 	{
 		.name = "set_permissive",
@@ -3983,8 +3976,7 @@ static const struct command_registration xtensa_any_command_handlers[] = {
 		.handler = xtensa_cmd_smpbreak,
 		.mode = COMMAND_ANY,
 		.help = "Set the way the CPU chains OCD breaks",
-		.usage =
-			"[none|breakinout|runstall] | [BreakIn] [BreakOut] [RunStallIn] [DebugModeOut]",
+		.usage = "[none|breakinout|runstall] | [BreakIn] [BreakOut] [RunStallIn] [DebugModeOut]",
 	},
 	{
 		.name = "perfmon_enable",
@@ -3997,8 +3989,7 @@ static const struct command_registration xtensa_any_command_handlers[] = {
 		.name = "perfmon_dump",
 		.handler = xtensa_cmd_perfmon_dump,
 		.mode = COMMAND_EXEC,
-		.help =
-			"Dump performance counter value. If no argument specified, dumps all counters.",
+		.help = "Dump performance counter value. If no argument specified, dumps all counters.",
 		.usage = "[counter_id]",
 	},
 	{

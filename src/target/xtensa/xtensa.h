@@ -26,7 +26,6 @@
 #include "assert.h"
 #include <target/target.h>
 #include <target/breakpoints.h>
-#include "xtensa_chip.h"
 #include "xtensa_regs.h"
 #include "xtensa_debug_module.h"
 

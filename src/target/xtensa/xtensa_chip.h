@@ -14,24 +14,18 @@
  *   GNU General Public License for more details.                          *
  *                                                                         *
  *   You should have received a copy of the GNU General Public License     *
- *   along with this program; if not, write to the                         *
- *   Free Software Foundation, Inc.,                                       *
- *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.           *
+ *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  ***************************************************************************/
 
 #ifndef OPENOCD_TARGET_XTENSA_CHIP_H
 #define OPENOCD_TARGET_XTENSA_CHIP_H
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
 #include <target/target.h>
 #include "xtensa.h"
 #include "xtensa_debug_module.h"
 
 struct xtensa_chip_common {
 	struct xtensa xtensa;
-
 	/* Chip-specific extensions can be added here */
 };
 
@@ -39,7 +33,6 @@ static inline struct xtensa_chip_common *target_to_xtensa_chip(struct target *ta
 {
 	return container_of(target->arch_info, struct xtensa_chip_common, xtensa);
 }
-
 
 int xtensa_chip_init_arch_info(struct target *target, void *arch_info, 
 		struct xtensa_debug_module_config *dm_cfg);

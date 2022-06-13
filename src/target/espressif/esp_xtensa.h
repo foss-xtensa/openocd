@@ -22,7 +22,7 @@
 
 #include <helper/command.h>
 #include <target/target.h>
-#include <target/xtensa/xtensa_chip.h>
+#include <target/xtensa/xtensa.h>
 
 struct esp_xtensa_common {
 	struct xtensa xtensa;	/* must be the first element */

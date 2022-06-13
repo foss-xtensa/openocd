@@ -1335,7 +1335,7 @@ static int gdb_set_registers_packet(struct connection *connection,
 	for (i = 0; i < reg_list_size; i++) {
 		uint8_t *bin_buf;
 		if (!reg_list[i] || !reg_list[i]->exist)
-            continue;
+			continue;
 		int chars = (DIV_ROUND_UP(reg_list[i]->size, 8) * 2);
 
 		if (packet_p + chars > packet + packet_size)

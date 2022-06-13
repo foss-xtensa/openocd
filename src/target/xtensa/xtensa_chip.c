@@ -14,9 +14,7 @@
  *   GNU General Public License for more details.                          *
  *                                                                         *
  *   You should have received a copy of the GNU General Public License     *
- *   along with this program; if not, write to the                         *
- *   Free Software Foundation, Inc.,                                       *
- *   51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.           *
+ *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  ***************************************************************************/
 
 #ifdef HAVE_CONFIG_H
@@ -29,7 +27,6 @@
 #include <target/arm_adi_v5.h>
 #include <rtos/rtos.h>
 #include "xtensa_chip.h"
-
 
 int xtensa_chip_init_arch_info(struct target *target, void *arch_info, 
 		struct xtensa_debug_module_config *dm_cfg)
