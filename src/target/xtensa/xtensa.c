@@ -321,8 +321,8 @@ union xtensa_reg_val_u {
 };
 
 /* Per-config Xtensa registers as specified via "xtreg" in xtensa-core*.cfg */
-struct xtensa_reg_desc *xtensa_optregs = NULL;
-uint16_t num_xtensa_optregs = 0;
+struct xtensa_reg_desc *xtensa_optregs;
+uint16_t num_xtensa_optregs;
 
 static char xtensa_qpkt_resp[XTENSA_QUERYPKT_RESP_MAX];
 
@@ -406,21 +406,19 @@ static inline bool xtensa_is_cacheable(const struct xtensa_cache_config *cache,
 
 static inline bool xtensa_is_icacheable(struct xtensa *xtensa, target_addr_t address)
 {
-	return (
-		xtensa_is_cacheable(&xtensa->core_config->icache, &xtensa->core_config->iram, address) ||
+	return xtensa_is_cacheable(&xtensa->core_config->icache, &xtensa->core_config->iram, address) ||
 		xtensa_is_cacheable(&xtensa->core_config->icache, &xtensa->core_config->irom, address) ||
 		xtensa_is_cacheable(&xtensa->core_config->icache, &xtensa->core_config->sram, address) ||
-		xtensa_is_cacheable(&xtensa->core_config->icache, &xtensa->core_config->srom, address));
+		xtensa_is_cacheable(&xtensa->core_config->icache, &xtensa->core_config->srom, address);
 
 }
 
 static inline bool xtensa_is_dcacheable(struct xtensa *xtensa, target_addr_t address)
 {
-	return (
-		xtensa_is_cacheable(&xtensa->core_config->dcache, &xtensa->core_config->dram, address) ||
+	return xtensa_is_cacheable(&xtensa->core_config->dcache, &xtensa->core_config->dram, address) ||
 		xtensa_is_cacheable(&xtensa->core_config->dcache, &xtensa->core_config->drom, address) ||
 		xtensa_is_cacheable(&xtensa->core_config->dcache, &xtensa->core_config->sram, address) ||
-		xtensa_is_cacheable(&xtensa->core_config->dcache, &xtensa->core_config->srom, address));
+		xtensa_is_cacheable(&xtensa->core_config->dcache, &xtensa->core_config->srom, address);
 }
 
 static int xtensa_core_reg_get(struct reg *reg)
@@ -487,7 +485,7 @@ static const struct reg_arch_type xtensa_reg_type = {
 	.set = xtensa_core_reg_set,
 };
 
-static struct reg *xtensa_empty_regs = NULL;
+static struct reg *xtensa_empty_regs;
 
 /* Convert a register index that's indexed relative to windowbase, to the real address. */
 static enum xtensa_reg_id xtensa_windowbase_offset_to_canonical(struct xtensa *xtensa,
@@ -948,7 +946,7 @@ void xtensa_reg_set(struct target *target, enum xtensa_reg_id reg_id, xtensa_reg
 void xtensa_reg_set_deep_relgen(struct target *target, enum xtensa_reg_id a_idx, xtensa_reg_val_t value)
 {
 	struct xtensa *xtensa = target_to_xtensa(target);
-	uint32_t windowbase = (xtensa->core_config->windowed ? 
+	uint32_t windowbase = (xtensa->core_config->windowed ?
 			xtensa_reg_get(target, XT_REG_IDX_WINDOWBASE) : 0);
 	int ar_idx = xtensa_windowbase_offset_to_canonical(xtensa, a_idx, windowbase);
 	xtensa_reg_set(target, a_idx, value);
@@ -1055,10 +1053,10 @@ int xtensa_fetch_all_regs(struct target *target)
 			if (i + j < xtensa->core_config->aregs_num) {
 				xtensa_queue_exec_ins(xtensa,
 					XT_INS_WSR(xtensa, XT_SR_DDR, xtensa_regs[XT_REG_IDX_AR0 + i].reg_num));
-				xtensa_queue_dbg_reg_read(xtensa, NARADR_DDR, 
+				xtensa_queue_dbg_reg_read(xtensa, NARADR_DDR,
 					regvals[XT_REG_IDX_AR0 + i + j].buf);
 				if (debug_dsrs)
-					xtensa_queue_dbg_reg_read(xtensa, NARADR_DSR, 
+					xtensa_queue_dbg_reg_read(xtensa, NARADR_DSR,
 						dsrs[XT_REG_IDX_AR0 + i + j].buf);
 			}
 		}
@@ -2095,10 +2093,10 @@ int xtensa_poll(struct target *target)
 					target->debug_reason = DBG_REASON_WPTANDBKPT;
 				else
 					target->debug_reason = DBG_REASON_BREAKPOINT;
-			} else if (halt_cause & DEBUGCAUSE_DB) {
+			} else if (halt_cause & DEBUGCAUSE_DB)
 				target->debug_reason = DBG_REASON_WATCHPOINT;
-			}
-			LOG_TARGET_DEBUG(target, "Target halted, pc=0x%08" PRIx32 ", debug_reason=%08" PRIx32 ", oldstate=%08" PRIx32,
+			LOG_TARGET_DEBUG(target, "Target halted, pc=0x%08" PRIx32
+				", debug_reason=%08" PRIx32 ", oldstate=%08" PRIx32,
 				xtensa_reg_get(target, XT_REG_IDX_PC),
 				target->debug_reason,
 				oldstate);
@@ -2580,9 +2578,8 @@ static int32_t xtensa_gdbqc_parse_exec_tie_ops(struct target *target, char *opst
 			break;
 		}
 		unsigned int i = 0;
-		while ((i < oplen) && opstr && (*opstr == ':')) {
+		while ((i < oplen) && opstr && (*opstr == ':'))
 			ops[i++] = strtoul(opstr + 1, &opstr, 16);
-		}
 		if (i != oplen) {
 			LOG_TARGET_ERROR(target, "TIE access instruction malformed (%d)\n", i);
 			break;
@@ -2931,7 +2928,9 @@ static void xtensa_free_reg_cache(struct target *target)
 	if (cache) {
 		register_unlink_cache(&target->reg_cache, cache);
 		for (unsigned int i = 0; i < cache->num_regs; i++) {
-			//free(xtensa->algo_context_backup[i]);
+#if 0
+			free(xtensa->algo_context_backup[i]);
+#endif
 			free(cache->reg_list[i].value);
 		}
 		free(xtensa->algo_context_backup);
@@ -2953,7 +2952,7 @@ static void xtensa_free_reg_cache(struct target *target)
 		for (unsigned int i = 0; i < num_xtensa_optregs; i++)
 			free((void *)xtensa_optregs[i].name);
 		free(xtensa_optregs);
-    }
+	}
 	xtensa_optregs = NULL;
 }
 

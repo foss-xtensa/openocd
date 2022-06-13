@@ -134,10 +134,10 @@ struct xtensa_reg_desc {
 
 
 #define _XT_MK_DBREGN(reg_num, reg_type)					\
-	(( reg_type ## _VAL ) | ( reg_num ))
+	((reg_type ## _VAL) | (reg_num))
 
 #define _XT_MK_DBREGN_MASK(reg_num, reg_mask)				\
-	(( reg_mask ) | ( reg_num ))
+	((reg_mask) | (reg_num))
 
 #define XT_MK_REG_DESC(n, r, t, f)							\
 	{ .name = (n), .exist = false, .reg_num = (r),			\

@@ -28,7 +28,7 @@
 #include <rtos/rtos.h>
 #include "xtensa_chip.h"
 
-int xtensa_chip_init_arch_info(struct target *target, void *arch_info, 
+int xtensa_chip_init_arch_info(struct target *target, void *arch_info,
 		struct xtensa_debug_module_config *dm_cfg)
 {
 	struct xtensa_chip_common *xtensa_chip = (struct xtensa_chip_common *)arch_info;
@@ -37,9 +37,8 @@ int xtensa_chip_init_arch_info(struct target *target, void *arch_info,
 		dm_cfg->queue_tdi_idle_arg = target;
 	}
 	int ret = xtensa_init_arch_info(target, &xtensa_chip->xtensa, dm_cfg);
-	if (ret != ERROR_OK) {
+	if (ret != ERROR_OK)
 		return ret;
-	}
 	/* All xtensa target structures point back to original xtensa_chip */
 	xtensa_chip->xtensa.xtensa_chip = arch_info;
 	return ERROR_OK;
@@ -66,23 +65,22 @@ static int xtensa_chip_poll(struct target *target)
 		/*Call any event callbacks that are applicable */
 		if (old_state == TARGET_DEBUG_RUNNING)
 			target_call_event_callbacks(target, TARGET_EVENT_DEBUG_HALTED);
-		else {
+		else
 			target_call_event_callbacks(target, TARGET_EVENT_HALTED);
-		}
 	}
 
 	return ret;
 }
 
-/* 
+/*
  * TODO: Remove if possible
  *
 The TDI pin is also used as a flash Vcc bootstrap pin. If we reset the CPU externally, the last state of the TDI pin can
-allow the power to an 1.8V flash chip to be raised to 3.3V, or the other way around. 
+allow the power to an 1.8V flash chip to be raised to 3.3V, or the other way around.
 */
 void xtensa_chip_queue_tdi_idle(struct target *target)
 {
-	static uint32_t value = 0;
+	static uint32_t value;
 	uint8_t t[4] = { 0, 0, 0, 0 };
 
 #if 0

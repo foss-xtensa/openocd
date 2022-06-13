@@ -34,7 +34,7 @@ static inline struct xtensa_chip_common *target_to_xtensa_chip(struct target *ta
 	return container_of(target->arch_info, struct xtensa_chip_common, xtensa);
 }
 
-int xtensa_chip_init_arch_info(struct target *target, void *arch_info, 
+int xtensa_chip_init_arch_info(struct target *target, void *arch_info,
 		struct xtensa_debug_module_config *dm_cfg);
 int xtensa_chip_target_init(struct command_context *cmd_ctx, struct target *target);
 int xtensa_chip_arch_state(struct target *target);
