@@ -194,9 +194,6 @@
 #define XT_HW_IBREAK_MAX_NUM            2
 #define XT_HW_DBREAK_MAX_NUM            2
 
-#define XTENSA_MAX_TIE_REG_WIDTH        (512)	/* TIE register file max 4096 bits */
-#define XTENSA_QUERYPKT_RESP_MAX        (XTENSA_MAX_TIE_REG_WIDTH * 2 + 1)
-
 struct xtensa_reg_desc xtensa_regs[XT_NUM_REGS] = {
 	XT_MK_REG_DESC("pc", XT_PC_REG_NUM_VIRTUAL, XT_REG_SPECIAL, 0),
 	XT_MK_REG_DESC("ar0", 0x00, XT_REG_GENERAL, 0),
@@ -319,12 +316,6 @@ union xtensa_reg_val_u {
 	xtensa_reg_val_t val;
 	uint8_t buf[4];
 };
-
-/* Per-config Xtensa registers as specified via "xtreg" in xtensa-core*.cfg */
-struct xtensa_reg_desc *xtensa_optregs;
-uint16_t num_xtensa_optregs;
-
-static char xtensa_qpkt_resp[XTENSA_QUERYPKT_RESP_MAX];
 
 const struct xtensa_keyval_info_s xt_qerr[XT_QERR_NUM] = {
 	{ .chrval = "E00", .intval = ERROR_FAIL },
@@ -485,8 +476,6 @@ static const struct reg_arch_type xtensa_reg_type = {
 	.set = xtensa_core_reg_set,
 };
 
-static struct reg *xtensa_empty_regs;
-
 /* Convert a register index that's indexed relative to windowbase, to the real address. */
 static enum xtensa_reg_id xtensa_windowbase_offset_to_canonical(struct xtensa *xtensa,
 	enum xtensa_reg_id reg_idx,
@@ -611,7 +600,7 @@ static int xtensa_write_dirty_registers(struct target *target)
 	/* We need to write the dirty registers in the cache list back to the processor.
 	 * Start by writing the SFR/user registers. */
 	for (unsigned int i = 0; i < reg_list_size; i++) {
-		struct xtensa_reg_desc *rlist = (i < XT_NUM_REGS) ? xtensa_regs : xtensa_optregs;
+		struct xtensa_reg_desc *rlist = (i < XT_NUM_REGS) ? xtensa_regs : xtensa->optregs;
 		unsigned int ridx = (i < XT_NUM_REGS) ? i : i - XT_NUM_REGS;
 		if (reg_list[i].dirty) {
 			if (rlist[ridx].type == XT_REG_SPECIAL ||
@@ -1091,7 +1080,7 @@ int xtensa_fetch_all_regs(struct target *target)
 	/* We're now free to use any of A0-A15 as scratch registers
 	 * Grab the SFRs and user registers first. We use A3 as a scratch register. */
 	for (unsigned int i = 0; i < reg_list_size; i++) {
-		struct xtensa_reg_desc *rlist = (i < XT_NUM_REGS) ? xtensa_regs : xtensa_optregs;
+		struct xtensa_reg_desc *rlist = (i < XT_NUM_REGS) ? xtensa_regs : xtensa->optregs;
 		unsigned int ridx = (i < XT_NUM_REGS) ? i : i - XT_NUM_REGS;
 		if (xtensa_reg_is_readable(rlist[ridx].flags, cpenable) && rlist[ridx].exist) {
 			bool reg_fetched = true;
@@ -1132,7 +1121,7 @@ int xtensa_fetch_all_regs(struct target *target)
 	if (debug_dsrs) {
 		/* DSR checking: follows order in which registers are requested. */
 		for (unsigned int i = 0; i < reg_list_size; i++) {
-			struct xtensa_reg_desc *rlist = (i < XT_NUM_REGS) ? xtensa_regs : xtensa_optregs;
+			struct xtensa_reg_desc *rlist = (i < XT_NUM_REGS) ? xtensa_regs : xtensa->optregs;
 			unsigned int ridx = (i < XT_NUM_REGS) ? i : i - XT_NUM_REGS;
 			if (xtensa_reg_is_readable(rlist[ridx].flags, cpenable) && rlist[ridx].exist &&
 				(rlist[ridx].type != XT_REG_DEBUG) &&
@@ -1154,7 +1143,7 @@ int xtensa_fetch_all_regs(struct target *target)
 	}
 	/* Decode the result and update the cache. */
 	for (unsigned int i = 0; i < reg_list_size; i++) {
-		struct xtensa_reg_desc *rlist = (i < XT_NUM_REGS) ? xtensa_regs : xtensa_optregs;
+		struct xtensa_reg_desc *rlist = (i < XT_NUM_REGS) ? xtensa_regs : xtensa->optregs;
 		unsigned int ridx = (i < XT_NUM_REGS) ? i : i - XT_NUM_REGS;
 		if (xtensa_reg_is_readable(rlist[ridx].flags, cpenable) && rlist[ridx].exist) {
 			if ((xtensa->core_config->windowed) && (rlist[ridx].type == XT_REG_GENERAL)) {
@@ -1249,11 +1238,11 @@ int xtensa_get_gdb_reg_list(struct target *target,
 	}
 
 	for (unsigned int i = 0; i < num_regs; i++)
-		(*reg_list)[i] = (struct reg *)&xtensa_empty_regs[i];
+		(*reg_list)[i] = (struct reg *)&xtensa->empty_regs[i];
 	unsigned int k = 0;
 	for (unsigned int i = 0; i < xtensa->core_cache->num_regs && k < num_regs; i++) {
 		if (xtensa->core_cache->reg_list[i].exist) {
-			struct xtensa_reg_desc *rlist = (i < XT_NUM_REGS) ? xtensa_regs : xtensa_optregs;
+			struct xtensa_reg_desc *rlist = (i < XT_NUM_REGS) ? xtensa_regs : xtensa->optregs;
 			unsigned int ridx = (i < XT_NUM_REGS) ? i : i - XT_NUM_REGS;
 			int sparse_idx = rlist[ridx].dbreg_num;
 			if (i == XT_REG_IDX_PS) {
@@ -2413,9 +2402,9 @@ static int xtensa_build_reg_cache(struct target *target)
 	struct reg_cache **cache_p = register_get_last_cache_p(&target->reg_cache);
 	unsigned int last_dbreg_num = 0;
 
-	if (xtensa->core_regs_num + num_xtensa_optregs != xtensa->total_regs_num) {
+	if (xtensa->core_regs_num + xtensa->num_optregs != xtensa->total_regs_num) {
 		LOG_TARGET_WARNING(target, "Register count MISMATCH: %d core regs, %d extended regs; %d expected",
-			xtensa->core_regs_num, num_xtensa_optregs, xtensa->total_regs_num);
+			xtensa->core_regs_num, xtensa->num_optregs, xtensa->total_regs_num);
 	}
 
 	struct reg_cache *reg_cache = calloc(1, sizeof(struct reg_cache));
@@ -2427,7 +2416,7 @@ static int xtensa_build_reg_cache(struct target *target)
 	reg_cache->name = "Xtensa registers";
 	reg_cache->next = NULL;
 	/* Init reglist */
-	unsigned int reg_list_size = XT_NUM_REGS + num_xtensa_optregs;
+	unsigned int reg_list_size = XT_NUM_REGS + xtensa->num_optregs;
 	struct reg *reg_list = calloc(reg_list_size, sizeof(struct reg));
 	if (!reg_list) {
 		LOG_ERROR("Failed to alloc reg list!");
@@ -2436,8 +2425,8 @@ static int xtensa_build_reg_cache(struct target *target)
 	xtensa->dbregs_num = 0;
 	unsigned int didx = 0;
 	for (unsigned int whichlist = 0; whichlist < 2; whichlist++) {
-		struct xtensa_reg_desc *rlist = (whichlist == 0) ? xtensa_regs : xtensa_optregs;
-		unsigned int listsize = (whichlist == 0) ? XT_NUM_REGS : num_xtensa_optregs;
+		struct xtensa_reg_desc *rlist = (whichlist == 0) ? xtensa_regs : xtensa->optregs;
+		unsigned int listsize = (whichlist == 0) ? XT_NUM_REGS : xtensa->num_optregs;
 		for (unsigned int i = 0; i < listsize; i++, didx++) {
 			reg_list[didx].exist = rlist[i].exist;
 			reg_list[didx].name = rlist[i].name;
@@ -2475,26 +2464,26 @@ static int xtensa_build_reg_cache(struct target *target)
 		xtensa->total_regs_num, reg_list_size, xtensa->dbregs_num);
 
 	/* Construct empty-register list for handling unknown register requests */
-	xtensa_empty_regs = calloc(xtensa->dbregs_num, sizeof(struct reg));
-	if (!xtensa_empty_regs) {
+	xtensa->empty_regs = calloc(xtensa->dbregs_num, sizeof(struct reg));
+	if (!xtensa->empty_regs) {
 		LOG_TARGET_ERROR(target, "ERROR: Out of memory");
 		goto fail;
 	}
 	for (unsigned int i = 0; i < xtensa->dbregs_num; i++) {
-		xtensa_empty_regs[i].name = calloc(8, sizeof(char));
-		if (!xtensa_empty_regs[i].name) {
+		xtensa->empty_regs[i].name = calloc(8, sizeof(char));
+		if (!xtensa->empty_regs[i].name) {
 			LOG_TARGET_ERROR(target, "ERROR: Out of memory");
 			goto fail;
 		}
-		sprintf((char *)xtensa_empty_regs[i].name, "?0x%04x", i);
-		xtensa_empty_regs[i].size = 32;
-		xtensa_empty_regs[i].type = &xtensa_reg_type;
-		xtensa_empty_regs[i].value = calloc(1, 4 /*XT_REG_LEN*/);	/* make Clang Static Analyzer happy */
-		if (!xtensa_empty_regs[i].value) {
+		sprintf((char *)xtensa->empty_regs[i].name, "?0x%04x", i);
+		xtensa->empty_regs[i].size = 32;
+		xtensa->empty_regs[i].type = &xtensa_reg_type;
+		xtensa->empty_regs[i].value = calloc(1, 4 /*XT_REG_LEN*/);	/* make Clang Static Analyzer happy */
+		if (!xtensa->empty_regs[i].value) {
 			LOG_ERROR("Failed to alloc empty reg list value!");
 			goto fail;
 		}
-		xtensa_empty_regs[i].arch_info = xtensa;
+		xtensa->empty_regs[i].arch_info = xtensa;
 	}
 
 	/* Construct contiguous register list from contiguous descriptor list */
@@ -2523,7 +2512,6 @@ static int xtensa_build_reg_cache(struct target *target)
 		}
 	}
 
-#if 0
 	xtensa->algo_context_backup = calloc(reg_cache->num_regs, sizeof(void *));
 	if (!xtensa->algo_context_backup) {
 		LOG_ERROR("Failed to alloc mem for algorithm context backup!");
@@ -2537,7 +2525,6 @@ static int xtensa_build_reg_cache(struct target *target)
 			goto fail;
 		}
 	}
-#endif
 	xtensa->core_cache = reg_cache;
 	if (cache_p)
 		*cache_p = reg_cache;
@@ -2548,12 +2535,12 @@ fail:
 		for (unsigned int i = 0; i < reg_list_size; i++)
 			free(reg_list[i].value);
 	}
-	if (xtensa_empty_regs) {
+	if (xtensa->empty_regs) {
 		for (unsigned int i = 0; i < xtensa->dbregs_num; i++) {
-			free((void *)xtensa_empty_regs[i].name);
-			free(xtensa_empty_regs[i].value);
+			free((void *)xtensa->empty_regs[i].name);
+			free(xtensa->empty_regs[i].value);
 		}
-		free(xtensa_empty_regs);
+		free(xtensa->empty_regs);
 	}
 	if (xtensa->algo_context_backup) {
 		for (unsigned int i = 0; i < reg_cache->num_regs; i++)
@@ -2625,9 +2612,9 @@ static int xtensa_gdbqc_qxtreg(struct target *target, const char *packet, char *
 		error = XT_QERR_INVAL;
 		goto xtensa_gdbqc_qxtreg_fail;
 	}
-	uint8_t regbuf[XTENSA_QUERYPKT_RESP_MAX];
+	uint8_t regbuf[XT_QUERYPKT_RESP_MAX];
 	LOG_DEBUG("TIE reg 0x%08" PRIx32 " %s (%d bytes)", regnum, iswrite ? "write" : "read", reglen);
-	if (reglen * 2 + 1 > XTENSA_QUERYPKT_RESP_MAX) {
+	if (reglen * 2 + 1 > XT_QUERYPKT_RESP_MAX) {
 		LOG_ERROR("TIE register too large");
 		error = XT_QERR_MEM;
 		goto xtensa_gdbqc_qxtreg_fail;
@@ -2742,7 +2729,7 @@ int xtensa_gdb_query_custom(struct target *target, const char *packet, char **re
 		return ERROR_FAIL;
 	}
 
-	*response_p = xtensa_qpkt_resp;
+	*response_p = xtensa->qpkt_resp;
 	if (strncmp(packet, "qxtn", 4) == 0) {
 		strcpy(*response_p, "OpenOCD");
 		return ERROR_OK;
@@ -2928,9 +2915,7 @@ static void xtensa_free_reg_cache(struct target *target)
 	if (cache) {
 		register_unlink_cache(&target->reg_cache, cache);
 		for (unsigned int i = 0; i < cache->num_regs; i++) {
-#if 0
 			free(xtensa->algo_context_backup[i]);
-#endif
 			free(cache->reg_list[i].value);
 		}
 		free(xtensa->algo_context_backup);
@@ -2940,20 +2925,20 @@ static void xtensa_free_reg_cache(struct target *target)
 	xtensa->core_cache = NULL;
 	xtensa->algo_context_backup = NULL;
 
-	if (xtensa_empty_regs) {
+	if (xtensa->empty_regs) {
 		for (unsigned int i = 0; i < xtensa->dbregs_num; i++) {
-			free((void *)xtensa_empty_regs[i].name);
-			free(xtensa_empty_regs[i].value);
+			free((void *)xtensa->empty_regs[i].name);
+			free(xtensa->empty_regs[i].value);
 		}
-		free(xtensa_empty_regs);
+		free(xtensa->empty_regs);
 	}
-	xtensa_empty_regs = NULL;
-	if (xtensa_optregs) {
-		for (unsigned int i = 0; i < num_xtensa_optregs; i++)
-			free((void *)xtensa_optregs[i].name);
-		free(xtensa_optregs);
+	xtensa->empty_regs = NULL;
+	if (xtensa->optregs) {
+		for (unsigned int i = 0; i < xtensa->num_optregs; i++)
+			free((void *)xtensa->optregs[i].name);
+		free(xtensa->optregs);
 	}
-	xtensa_optregs = NULL;
+	xtensa->optregs = NULL;
 }
 
 void xtensa_target_deinit(struct target *target)
@@ -3362,11 +3347,11 @@ COMMAND_HELPER(xtensa_cmd_xtreg_do, struct xtensa *xtensa)
 		}
 		xtensa->total_regs_num = numregs;
 		xtensa->core_regs_num = 0;
-		num_xtensa_optregs = 0;
+		xtensa->num_optregs = 0;
 		/* A little more memory than required, but saves a second initialization pass */
-		xtensa_optregs = calloc(xtensa->total_regs_num, sizeof(struct xtensa_reg_desc));
-		if (!xtensa_optregs) {
-			LOG_ERROR("Failed to allocate xtensa_optregs!");
+		xtensa->optregs = calloc(xtensa->total_regs_num, sizeof(struct xtensa_reg_desc));
+		if (!xtensa->optregs) {
+			LOG_ERROR("Failed to allocate xtensa->optregs!");
 			return ERROR_FAIL;
 		}
 		return ERROR_OK;
@@ -3392,11 +3377,11 @@ COMMAND_HELPER(xtensa_cmd_xtreg_do, struct xtensa *xtensa)
 		return ERROR_COMMAND_ARGUMENT_INVALID;
 	}
 
-	if ((num_xtensa_optregs + xtensa->core_regs_num) >= xtensa->total_regs_num) {
+	if ((xtensa->num_optregs + xtensa->core_regs_num) >= xtensa->total_regs_num) {
 		if (xtensa->total_regs_num) {
 			LOG_ERROR("'xtreg %s 0x%04x': Too many registers (%d expected, %d core %d extended)",
 				regname, regnum,
-				xtensa->total_regs_num, xtensa->core_regs_num, num_xtensa_optregs);
+				xtensa->total_regs_num, xtensa->core_regs_num, xtensa->num_optregs);
 		} else {
 			LOG_ERROR("'xtreg %s 0x%04x': Number of registers unspecified",
 				regname, regnum);
@@ -3405,7 +3390,7 @@ COMMAND_HELPER(xtensa_cmd_xtreg_do, struct xtensa *xtensa)
 	}
 
 	/* Determine whether register belongs in xtensa_regs[] or xtensa->xtensa_spec_regs[] */
-	struct xtensa_reg_desc *rptr = &xtensa_optregs[num_xtensa_optregs];
+	struct xtensa_reg_desc *rptr = &xtensa->optregs[xtensa->num_optregs];
 	bool is_extended_reg = true;
 	unsigned int ridx;
 	for (ridx = 0; ridx < XT_NUM_REGS; ridx++) {
@@ -3424,7 +3409,7 @@ COMMAND_HELPER(xtensa_cmd_xtreg_do, struct xtensa *xtensa)
 		rptr->name = strdup(CMD_ARGV[0]);
 		rptr->dbreg_num = regnum;
 		rptr->reg_num = (regnum & XT_REG_INDEX_MASK);
-		num_xtensa_optregs++;
+		xtensa->num_optregs++;
 
 		/* Register type */
 		if ((regnum & XT_REG_GENERAL_MASK) == XT_REG_GENERAL_VAL) {
@@ -3458,13 +3443,13 @@ COMMAND_HELPER(xtensa_cmd_xtreg_do, struct xtensa *xtensa)
 
 		if ((rptr->reg_num == (XT_PS_REG_NUM_BASE + xtensa->core_config->debug.irq_level)) &&
 			(xtensa->core_config->core_type == XT_LX) && (rptr->type == XT_REG_SPECIAL)) {
-			xtensa->eps_dbglevel_idx = XT_NUM_REGS + num_xtensa_optregs - 1;
+			xtensa->eps_dbglevel_idx = XT_NUM_REGS + xtensa->num_optregs - 1;
 			LOG_DEBUG("Setting PS (%s) index to %d", rptr->name, xtensa->eps_dbglevel_idx);
 		}
 	}
 
 	/* Build out list of contiguous registers in specified order */
-	unsigned int running_reg_count = num_xtensa_optregs + xtensa->core_regs_num;
+	unsigned int running_reg_count = xtensa->num_optregs + xtensa->core_regs_num;
 	if (xtensa->contiguous_regs_desc) {
 		assert((running_reg_count <= xtensa->total_regs_num) && "contiguous register address internal error!");
 		xtensa->contiguous_regs_desc[running_reg_count - 1] = rptr;
@@ -3473,7 +3458,7 @@ COMMAND_HELPER(xtensa_cmd_xtreg_do, struct xtensa *xtensa)
 	LOG_DEBUG("Added %s register %-16s: 0x%04x/0x%02x t%d (%d of %d)",
 		is_extended_reg ? "config-specific" : "core",
 		rptr->name, rptr->dbreg_num, rptr->reg_num, rptr->type,
-		is_extended_reg ? num_xtensa_optregs : ridx,
+		is_extended_reg ? xtensa->num_optregs : ridx,
 		is_extended_reg ? xtensa->total_regs_num : XT_NUM_REGS);
 #endif
 	return ERROR_OK;

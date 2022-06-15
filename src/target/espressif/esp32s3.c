@@ -372,6 +372,11 @@ static const struct command_registration esp32s3_command_handlers[] = {
 		.chain = esp_xtensa_smp_command_handlers,
 	},
 	{
+		.mode = COMMAND_ANY,
+		.help = "Xtensa commands group",
+		.chain = xtensa_command_handlers,
+	},
+	{
 		.name = "esp32",
 		.usage = "",
 		.chain = smp_command_handlers,
