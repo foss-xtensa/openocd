@@ -164,7 +164,7 @@
 /* Read Floating-Point Register */
 #define XT_INS_RFR(X, FR, T) _XT_INS_FORMAT_RRR(X, 0xFA0000, ((FR << 4) | 0x4), T)
 /* Write Floating-Point Register */
-#define XT_INS_WFR(X, FR, T) _XT_INS_FORMAT_RRR(X, 0xFA0000, ((FR << 4) | 0x5), T)
+#define XT_INS_WFR(X, FR, T) _XT_INS_FORMAT_RRR(X, 0xFA0000, ((T << 4) | 0x5), FR)
 
 #define XT_INS_L32E(X, R, S, T) _XT_INS_FORMAT_RRI4(X, 0x090000, 0, R, S, T)
 #define XT_INS_S32E(X, R, S, T) _XT_INS_FORMAT_RRI4(X, 0x490000, 0, R, S, T)
@@ -588,7 +588,7 @@ static int xtensa_write_dirty_registers(struct target *target)
 	struct xtensa *xtensa = target_to_xtensa(target);
 	int res;
 	xtensa_reg_val_t regval, windowbase = 0;
-	bool scratch_reg_dirty = false;
+	bool scratch_reg_dirty = false, delay_cpenable = false;
 	struct reg *reg_list = xtensa->core_cache->reg_list;
 	unsigned int reg_list_size = xtensa->core_cache->num_regs;
 	bool preserve_a3 = false;
@@ -607,6 +607,10 @@ static int xtensa_write_dirty_registers(struct target *target)
 				rlist[ridx].type == XT_REG_USER ||
 				rlist[ridx].type == XT_REG_FR) {
 				scratch_reg_dirty = true;
+				if (i == XT_REG_IDX_CPENABLE) {
+					delay_cpenable = true;
+					continue;
+				}
 				regval = xtensa_reg_get(target, i);
 				LOG_TARGET_DEBUG(target, "Writing back reg %s (%d) val %08" PRIX32,
 					reg_list[i].name,
@@ -624,8 +628,7 @@ static int xtensa_write_dirty_registers(struct target *target)
 						if (reg_num == XT_PC_REG_NUM_VIRTUAL)
 							/* reg number of PC for debug interrupt depends on NDEBUGLEVEL */
 							reg_num = (XT_PC_REG_NUM_BASE + xtensa->core_config->debug.irq_level);
-						xtensa_queue_exec_ins(xtensa,
-							XT_INS_WSR(xtensa, reg_num, XT_REG_A3));
+						xtensa_queue_exec_ins(xtensa, XT_INS_WSR(xtensa, reg_num, XT_REG_A3));
 					}
 				}
 				reg_list[i].dirty = false;
@@ -634,6 +637,16 @@ static int xtensa_write_dirty_registers(struct target *target)
 	}
 	if (scratch_reg_dirty)
 		xtensa_mark_register_dirty(xtensa, XT_REG_IDX_A3);
+	if (delay_cpenable) {
+		regval = xtensa_reg_get(target, XT_REG_IDX_CPENABLE);
+		LOG_TARGET_DEBUG(target, "Writing back reg cpenable (224) val %08" PRIX32, regval);
+		xtensa_queue_dbg_reg_write(xtensa, NARADR_DDR, regval);
+		xtensa_queue_exec_ins(xtensa, XT_INS_RSR(xtensa, XT_SR_DDR, XT_REG_A3));
+		xtensa_queue_exec_ins(xtensa, XT_INS_WSR(xtensa, 
+			xtensa_regs[XT_REG_IDX_CPENABLE].reg_num, 
+			XT_REG_A3));
+		reg_list[XT_REG_IDX_CPENABLE].dirty = false;
+	}
 
 	preserve_a3 = (xtensa->core_config->windowed);
 	if (preserve_a3) {
@@ -1059,9 +1072,7 @@ int xtensa_fetch_all_regs(struct target *target)
 	xtensa_window_state_restore(target, woe);
 
 	if (xtensa->core_config->coproc) {
-		/* As the very first thing after AREGS, go grab the CPENABLE registers. It indicates
-		 * if we can also grab the FP */
-		/* (and theoretically other coprocessor) registers, or if this is a bad thing to do.*/
+		/* As the very first thing after AREGS, go grab CPENABLE */
 		xtensa_queue_exec_ins(xtensa, XT_INS_RSR(xtensa, xtensa_regs[XT_REG_IDX_CPENABLE].reg_num, XT_REG_A3));
 		xtensa_queue_exec_ins(xtensa, XT_INS_WSR(xtensa, XT_SR_DDR, XT_REG_A3));
 		xtensa_queue_dbg_reg_read(xtensa, NARADR_DDR, regvals[XT_REG_IDX_CPENABLE].buf);
@@ -1075,8 +1086,18 @@ int xtensa_fetch_all_regs(struct target *target)
 
 	a3 = buf_get_u32(a3_buf, 0, 32);
 
-	if (xtensa->core_config->coproc)
+	if (xtensa->core_config->coproc) {
 		cpenable = buf_get_u32(regvals[XT_REG_IDX_CPENABLE].buf, 0, 32);
+
+		/* Enable all coprocessors (by setting all bits in CPENABLE) so we can read FP and user registers. */
+		xtensa_queue_dbg_reg_write(xtensa, NARADR_DDR, 0xffffffff);
+		xtensa_queue_exec_ins(xtensa, XT_INS_RSR(xtensa, XT_SR_DDR, XT_REG_A3));
+		xtensa_queue_exec_ins(xtensa, XT_INS_WSR(xtensa, xtensa_regs[XT_REG_IDX_CPENABLE].reg_num, XT_REG_A3));
+
+		/* Save CPENABLE; flag dirty later (when regcache updated) so original value is always restored */
+		LOG_TARGET_DEBUG(target, "CPENABLE: was 0x%" PRIx32 ", all enabled", cpenable);
+		xtensa_reg_set(target, XT_REG_IDX_CPENABLE, cpenable);
+	}
 	/* We're now free to use any of A0-A15 as scratch registers
 	 * Grab the SFRs and user registers first. We use A3 as a scratch register. */
 	for (unsigned int i = 0; i < reg_list_size; i++) {
@@ -1096,6 +1117,10 @@ int xtensa_fetch_all_regs(struct target *target)
 				if (reg_num == XT_PC_REG_NUM_VIRTUAL) {
 					/* reg number of PC for debug interrupt depends on NDEBUGLEVEL */
 					reg_num = (XT_PC_REG_NUM_BASE + xtensa->core_config->debug.irq_level);
+				} else if (reg_num == xtensa_regs[XT_REG_IDX_CPENABLE].reg_num) {
+					/* CPENABLE already read/updated; don't re-read */
+					reg_fetched = false;
+					break;
 				}
 				xtensa_queue_exec_ins(xtensa, XT_INS_RSR(xtensa, reg_num, XT_REG_A3));
 				break;
@@ -1159,7 +1184,7 @@ int xtensa_fetch_all_regs(struct target *target)
 #endif
 			} else {
 				xtensa_reg_val_t regval = buf_get_u32(regvals[i].buf, 0, 32);
-				bool is_dirty = false;
+				bool is_dirty = (i == XT_REG_IDX_CPENABLE);
 #if 0
 				LOG_INFO("Register %s: 0x%X", reg_list[i].name, regval);
 #endif
@@ -3446,7 +3471,8 @@ COMMAND_HELPER(xtensa_cmd_xtreg_do, struct xtensa *xtensa)
 			xtensa->eps_dbglevel_idx = XT_NUM_REGS + xtensa->num_optregs - 1;
 			LOG_DEBUG("Setting PS (%s) index to %d", rptr->name, xtensa->eps_dbglevel_idx);
 		}
-	}
+	} else if (strcmp(rptr->name, "cpenable") == 0)
+		xtensa->core_config->coproc = true;
 
 	/* Build out list of contiguous registers in specified order */
 	unsigned int running_reg_count = xtensa->num_optregs + xtensa->core_regs_num;
