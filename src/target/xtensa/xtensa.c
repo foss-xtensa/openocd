@@ -923,7 +923,7 @@ int xtensa_core_status_check(struct target *target)
 			OCDDSR_EXECEXCEPTION | OCDDSR_EXECOVERRUN);
 		if (res != ERROR_OK && !xtensa->suppress_dsr_errors)
 			LOG_TARGET_ERROR(target, "clearing DSR failed!");
-		return xtensa->suppress_dsr_errors ? ERROR_OK : ERROR_FAIL;
+		return ERROR_FAIL;
 	}
 	return ERROR_OK;
 }
