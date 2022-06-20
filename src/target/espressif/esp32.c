@@ -296,7 +296,6 @@ static int esp32_virt2phys(struct target *target,
 	return ERROR_FAIL;
 }
 
-
 /* The TDI pin is also used as a flash Vcc bootstrap pin. If we reset the CPU externally, the last state of the TDI pin
  * can allow the power to an 1.8V flash chip to be raised to 3.3V, or the other way around. Users can use the
  * esp32 flashbootstrap command to set a level, and this routine will make sure the tdi line will return to
@@ -449,11 +448,6 @@ extern const struct command_registration semihosting_common_handlers[];
 static const struct command_registration esp32_command_handlers[] = {
 	{
 		.chain = esp_xtensa_smp_command_handlers,
-	},
-	{
-		.mode = COMMAND_ANY,
-		.help = "Xtensa commands group",
-		.chain = xtensa_command_handlers,
 	},
 	{
 		.name = "esp32",

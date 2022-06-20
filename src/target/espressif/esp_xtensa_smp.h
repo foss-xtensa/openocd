@@ -59,6 +59,5 @@ int esp_xtensa_smp_init_arch_info(struct target *target,
 
 extern const struct command_registration esp_xtensa_smp_command_handlers[];
 extern const struct command_registration esp_xtensa_smp_xtensa_command_handlers[];
-extern const struct command_registration esp_xtensa_smp_esp_command_handlers[];
 
 #endif	/* OPENOCD_TARGET_XTENSA_ESP_SMP_H */

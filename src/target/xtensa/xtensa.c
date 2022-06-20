@@ -583,6 +583,19 @@ static bool xtensa_reg_is_readable(int flags, int cpenable)
 	return true;
 }
 
+static bool xtensa_scratch_regs_fixup(struct xtensa *xtensa, struct reg *reg_list, int i, int j, int a_idx, int ar_idx)
+{
+	int a_name = (a_idx == XT_AR_SCRATCH_A3) ? 3 : 4;
+	if (xtensa->scratch_ars[a_idx].intval && !xtensa->scratch_ars[ar_idx].intval) {
+		LOG_DEBUG("AR conflict: a%d -> ar%d", a_name, j - XT_REG_IDX_AR0);
+		memcpy(reg_list[j].value, reg_list[i].value, sizeof(xtensa_reg_val_t));
+	} else {
+		LOG_DEBUG("AR conflict: ar%d -> a%d", j - XT_REG_IDX_AR0, a_name);
+		memcpy(reg_list[i].value, reg_list[j].value, sizeof(xtensa_reg_val_t));
+	}
+	return (xtensa->scratch_ars[a_idx].intval && xtensa->scratch_ars[ar_idx].intval);
+}
+
 static int xtensa_write_dirty_registers(struct target *target)
 {
 	struct xtensa *xtensa = target_to_xtensa(target);
@@ -675,27 +688,11 @@ static int xtensa_write_dirty_registers(struct target *target)
 				if (memcmp(reg_list[i].value, reg_list[j].value, sizeof(xtensa_reg_val_t)) != 0) {
 					bool show_warning = true;
 					if (i == XT_REG_IDX_A3) {
-						if (xtensa->scratch_ars[XT_AR_SCRATCH_A3].intval &&
-							!xtensa->scratch_ars[XT_AR_SCRATCH_AR3].intval) {
-							LOG_DEBUG("AR conflict: a3 -> ar%d", j - XT_REG_IDX_AR0);
-							memcpy(reg_list[j].value, reg_list[i].value, sizeof(xtensa_reg_val_t));
-						} else {
-							LOG_DEBUG("AR conflict: ar%d -> a3", j - XT_REG_IDX_AR0);
-							memcpy(reg_list[i].value, reg_list[j].value, sizeof(xtensa_reg_val_t));
-						}
-						show_warning = (xtensa->scratch_ars[XT_AR_SCRATCH_A3].intval &&
-							xtensa->scratch_ars[XT_AR_SCRATCH_AR3].intval);
+						show_warning = xtensa_scratch_regs_fixup(xtensa, 
+							reg_list, i, j, XT_AR_SCRATCH_A3, XT_AR_SCRATCH_AR3);
 					} else if (i == XT_REG_IDX_A4) {
-						if (xtensa->scratch_ars[XT_AR_SCRATCH_A4].intval &&
-							!xtensa->scratch_ars[XT_AR_SCRATCH_AR4].intval) {
-							LOG_DEBUG("AR conflict: a4 -> ar%d", j - XT_REG_IDX_AR0);
-							memcpy(reg_list[j].value, reg_list[i].value, sizeof(xtensa_reg_val_t));
-						} else {
-							LOG_DEBUG("AR conflict: ar%d -> a4", j - XT_REG_IDX_AR0);
-							memcpy(reg_list[i].value, reg_list[j].value, sizeof(xtensa_reg_val_t));
-						}
-						show_warning = (xtensa->scratch_ars[XT_AR_SCRATCH_A4].intval &&
-							xtensa->scratch_ars[XT_AR_SCRATCH_AR4].intval);
+						show_warning = xtensa_scratch_regs_fixup(xtensa,
+							reg_list, i, j, XT_AR_SCRATCH_A4, XT_AR_SCRATCH_AR4);
 					}
 					if (show_warning) {
 						LOG_WARNING(
@@ -1216,7 +1213,7 @@ int xtensa_fetch_all_regs(struct target *target)
 		enum xtensa_reg_id ar4_idx = xtensa_windowbase_offset_to_canonical(xtensa, XT_REG_IDX_A4, windowbase);
 		sprintf(xtensa->scratch_ars[XT_AR_SCRATCH_AR4].chrval, "ar%d", ar4_idx - XT_REG_IDX_AR0);
 		for (enum xtensa_ar_scratch_set_e s = 0; s < XT_AR_SCRATCH_NUM; s++)
-			xtensa->scratch_ars[s].intval = 0;
+			xtensa->scratch_ars[s].intval = false;
 	}
 
 	/* We have used A3 (XT_REG_RELGEN) as a scratch register.  Restore and flag for write-back. */
@@ -2886,7 +2883,7 @@ int xtensa_init_arch_info(struct target *target, struct xtensa *xtensa,
 			LOG_ERROR("Xtensa scratch AR alloc failed\n");
 			return ERROR_FAIL;
 		}
-		xtensa->scratch_ars[s].intval = 0;
+		xtensa->scratch_ars[s].intval = false;
 		sprintf(xtensa->scratch_ars[s].chrval, "%s%d",
 			((s == XT_AR_SCRATCH_A3) || (s == XT_AR_SCRATCH_A4)) ? "a" : "ar",
 			((s == XT_AR_SCRATCH_A3) || (s == XT_AR_SCRATCH_AR3)) ? 3 : 4);

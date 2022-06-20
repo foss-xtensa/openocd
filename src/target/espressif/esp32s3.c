@@ -86,11 +86,9 @@ implementation.
 #define ESP32_S3_RTC_CNTL_SW_CPU_STALL_REG (ESP32_S3_RTCCNTL_BASE + 0xBC)
 #define ESP32_S3_RTC_CNTL_SW_CPU_STALL_DEF 0x0
 
-
 struct esp32s3_common {
 	struct esp_xtensa_smp_common esp_xtensa_smp;
 };
-
 
 /* Reset ESP32-S3's peripherals.
  * 1. OpenOCD makes sure the target is halted; if not, tries to halt it.
@@ -370,11 +368,6 @@ static const struct command_registration esp32s3_command_handlers[] = {
 	{
 		.usage = "",
 		.chain = esp_xtensa_smp_command_handlers,
-	},
-	{
-		.mode = COMMAND_ANY,
-		.help = "Xtensa commands group",
-		.chain = xtensa_command_handlers,
 	},
 	{
 		.name = "esp32",

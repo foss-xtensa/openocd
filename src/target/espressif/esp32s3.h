@@ -21,9 +21,4 @@
 
 #include <target/xtensa/xtensa_regs.h>
 
-#define ESP32_S3_DROM_LOW             0x3C000000
-#define ESP32_S3_DROM_HIGH            0x3D000000
-#define ESP32_S3_IROM_LOW             0x42000000
-#define ESP32_S3_IROM_HIGH            0x44000000
-
 #endif	/* OPENOCD_TARGET_ESP32S3_H */
