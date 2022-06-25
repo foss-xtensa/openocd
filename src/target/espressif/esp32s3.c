@@ -51,7 +51,7 @@ implementation.
 #define ESP32_S3_EXTRAM_DATA_HIGH       0x3E000000
 #define ESP32_S3_SYS_RAM_LOW            0x60000000UL
 #define ESP32_S3_SYS_RAM_HIGH           (ESP32_S3_SYS_RAM_LOW + 0x10000000UL)
-#define ESP32_S3_RTC_SLOW_MEM_BASE		ESP32_S3_RTC_DATA_LOW
+#define ESP32_S3_RTC_SLOW_MEM_BASE      ESP32_S3_RTC_DATA_LOW
 
 /* ESP32_S3 WDT */
 #define ESP32_S3_WDT_WKEY_VALUE       0x50D83AA1
@@ -185,9 +185,9 @@ static int esp32s3_soc_reset(struct target *target)
 
 	/* Write stub code into RTC_SLOW_MEM */
 	res = target_write_buffer(target,
-			ESP32_S3_RTC_SLOW_MEM_BASE,
-			sizeof(esp32s3_reset_stub_code),
-			esp32s3_reset_stub_code);
+		ESP32_S3_RTC_SLOW_MEM_BASE,
+		sizeof(esp32s3_reset_stub_code),
+		esp32s3_reset_stub_code);
 	if (res != ERROR_OK) {
 		LOG_ERROR("Failed to write stub (%d)!", res);
 		return res;
@@ -212,7 +212,9 @@ static int esp32s3_soc_reset(struct target *target)
 		alive_sleep(10);
 		xtensa_poll(target);
 		if (timeval_ms() >= timeout) {
-			LOG_TARGET_ERROR(target, "Timed out waiting for CPU to be reset, target state=%d", target->state);
+			LOG_TARGET_ERROR(target,
+				"Timed out waiting for CPU to be reset, target state=%d",
+				target->state);
 			get_timeout = true;
 			break;
 		}

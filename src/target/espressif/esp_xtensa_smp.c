@@ -31,7 +31,7 @@
 Multiprocessor stuff common:
 
 The ESP Xtensa chip can have several cores in it, which can run in SMP-mode if an
-SMP-capable OS is running. The hardware has a few features which make
+SMP-capable OS is running. The hardware has a few features which makes
 SMP debugging much easier.
 
 First of all, there's something called a 'break network', consisting of a

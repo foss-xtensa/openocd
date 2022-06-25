@@ -374,6 +374,16 @@ void xtensa_set_permissive_mode(struct target *target, bool state);
 const char *xtensa_get_gdb_arch(struct target *target);
 int xtensa_gdb_query_custom(struct target *target, const char *packet, char **response_p);
 
+COMMAND_HELPER(xtensa_cmd_permissive_mode_do, struct xtensa *xtensa);
+COMMAND_HELPER(xtensa_cmd_mask_interrupts_do, struct xtensa *xtensa);
+COMMAND_HELPER(xtensa_cmd_smpbreak_do, struct target *target);
+COMMAND_HELPER(xtensa_cmd_perfmon_dump_do, struct xtensa *xtensa);
+COMMAND_HELPER(xtensa_cmd_perfmon_enable_do, struct xtensa *xtensa);
+COMMAND_HELPER(xtensa_cmd_tracestart_do, struct xtensa *xtensa);
+COMMAND_HELPER(xtensa_cmd_tracestop_do, struct xtensa *xtensa);
+COMMAND_HELPER(xtensa_cmd_tracedump_do, struct xtensa *xtensa, const char *fname);
+
+
 COMMAND_HELPER(xtensa_cmd_xtdef_do, struct xtensa *xtensa);
 COMMAND_HELPER(xtensa_cmd_xtopt_do, struct xtensa *xtensa);
 COMMAND_HELPER(xtensa_cmd_xtmem_do, struct xtensa *xtensa);
