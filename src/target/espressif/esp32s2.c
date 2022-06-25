@@ -437,6 +437,7 @@ static int esp32s2_target_init(struct command_context *cmd_ctx, struct target *t
 {
 	return esp_xtensa_target_init(cmd_ctx, target);
 }
+
 static const struct xtensa_debug_ops esp32s2_dbg_ops = {
 	.queue_enable = xtensa_dm_queue_enable,
 	.queue_reg_read = xtensa_dm_queue_reg_read,
@@ -477,6 +478,7 @@ static int esp32s2_target_create(struct target *target, Jim_Interp *interp)
 	target->debug_reason = DBG_REASON_NOTHALTED;
 	return ERROR_OK;
 }
+
 static const struct command_registration esp32s2_command_handlers[] = {
 	{
 		.mode = COMMAND_ANY,

@@ -593,7 +593,7 @@ static bool xtensa_scratch_regs_fixup(struct xtensa *xtensa, struct reg *reg_lis
 		LOG_DEBUG("AR conflict: ar%d -> a%d", j - XT_REG_IDX_AR0, a_name);
 		memcpy(reg_list[i].value, reg_list[j].value, sizeof(xtensa_reg_val_t));
 	}
-	return (xtensa->scratch_ars[a_idx].intval && xtensa->scratch_ars[ar_idx].intval);
+	return xtensa->scratch_ars[a_idx].intval && xtensa->scratch_ars[ar_idx].intval;
 }
 
 static int xtensa_write_dirty_registers(struct target *target)
@@ -655,8 +655,8 @@ static int xtensa_write_dirty_registers(struct target *target)
 		LOG_TARGET_DEBUG(target, "Writing back reg cpenable (224) val %08" PRIX32, regval);
 		xtensa_queue_dbg_reg_write(xtensa, NARADR_DDR, regval);
 		xtensa_queue_exec_ins(xtensa, XT_INS_RSR(xtensa, XT_SR_DDR, XT_REG_A3));
-		xtensa_queue_exec_ins(xtensa, XT_INS_WSR(xtensa, 
-			xtensa_regs[XT_REG_IDX_CPENABLE].reg_num, 
+		xtensa_queue_exec_ins(xtensa, XT_INS_WSR(xtensa,
+			xtensa_regs[XT_REG_IDX_CPENABLE].reg_num,
 			XT_REG_A3));
 		reg_list[XT_REG_IDX_CPENABLE].dirty = false;
 	}
@@ -688,7 +688,7 @@ static int xtensa_write_dirty_registers(struct target *target)
 				if (memcmp(reg_list[i].value, reg_list[j].value, sizeof(xtensa_reg_val_t)) != 0) {
 					bool show_warning = true;
 					if (i == XT_REG_IDX_A3) {
-						show_warning = xtensa_scratch_regs_fixup(xtensa, 
+						show_warning = xtensa_scratch_regs_fixup(xtensa,
 							reg_list, i, j, XT_AR_SCRATCH_A3, XT_AR_SCRATCH_AR3);
 					} else if (i == XT_REG_IDX_A4) {
 						show_warning = xtensa_scratch_regs_fixup(xtensa,
