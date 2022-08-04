@@ -1,19 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+
 /***************************************************************************
  *   Copyright (C) 2015 by David Ung                                       *
- *                                                                         *
- *   This program is free software; you can redistribute it and/or modify  *
- *   it under the terms of the GNU General Public License as published by  *
- *   the Free Software Foundation; either version 2 of the License, or     *
- *   (at your option) any later version.                                   *
- *                                                                         *
- *   This program is distributed in the hope that it will be useful,       *
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
- *   GNU General Public License for more details.                          *
- *                                                                         *
- *   You should have received a copy of the GNU General Public License     *
- *   along with this program; if not, write to the                         *
- *   Free Software Foundation, Inc.,                                       *
  *                                                                         *
  ***************************************************************************/
 
@@ -3155,8 +3143,6 @@ static const struct command_registration aarch64_exec_command_handlers[] = {
 
 	COMMAND_REGISTRATION_DONE
 };
-
-extern const struct command_registration semihosting_common_handlers[];
 
 static const struct command_registration aarch64_command_handlers[] = {
 	{

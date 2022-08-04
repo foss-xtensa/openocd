@@ -1,21 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+
 /***************************************************************************
  *   ESP32 target API for OpenOCD                                          *
  *   Copyright (C) 2016-2019 Espressif Systems Ltd.                        *
  *   Author: Dmitry Yakovlev <dmitry@espressif.com>                        *
  *   Author: Alexey Gerenkov <alexey@espressif.com>                        *
- *                                                                         *
- *   This program is free software; you can redistribute it and/or modify  *
- *   it under the terms of the GNU General Public License as published by  *
- *   the Free Software Foundation; either version 2 of the License, or     *
- *   (at your option) any later version.                                   *
- *                                                                         *
- *   This program is distributed in the hope that it will be useful,       *
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
- *   GNU General Public License for more details.                          *
- *                                                                         *
- *   You should have received a copy of the GNU General Public License     *
- *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  ***************************************************************************/
 
 #ifdef HAVE_CONFIG_H
@@ -444,7 +433,6 @@ static const struct command_registration esp32_any_command_handlers[] = {
 	COMMAND_REGISTRATION_DONE
 };
 
-extern const struct command_registration semihosting_common_handlers[];
 static const struct command_registration esp32_command_handlers[] = {
 	{
 		.chain = esp_xtensa_smp_command_handlers,
