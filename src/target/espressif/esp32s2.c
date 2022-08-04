@@ -404,9 +404,9 @@ static int esp32s2_poll(struct target *target)
 
 	if (old_state != TARGET_HALTED && target->state == TARGET_HALTED) {
 		/* Call any event callbacks that are applicable */
-		if (old_state == TARGET_DEBUG_RUNNING)
+		if (old_state == TARGET_DEBUG_RUNNING) {
 			target_call_event_callbacks(target, TARGET_EVENT_DEBUG_HALTED);
-		else {
+		} else {
 			esp32s2_on_halt(target);
 			target_call_event_callbacks(target, TARGET_EVENT_HALTED);
 		}

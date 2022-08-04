@@ -147,9 +147,9 @@ int esp_xtensa_smp_poll(struct target *target)
 		return ret;
 
 	if (target->smp) {
-		if (target->state == TARGET_RESET)
+		if (target->state == TARGET_RESET) {
 			esp_xtensa_smp->examine_other_cores = ESP_XTENSA_SMP_EXAMINE_OTHER_CORES;
-		else if (esp_xtensa_smp->examine_other_cores > 0 &&
+		} else if (esp_xtensa_smp->examine_other_cores > 0 &&
 			(target->state == TARGET_RUNNING || target->state == TARGET_HALTED)) {
 			LOG_TARGET_DEBUG(target, "Check for unexamined cores after reset");
 			bool all_examined = true;
@@ -178,9 +178,9 @@ int esp_xtensa_smp_poll(struct target *target)
 				return ret;
 		}
 		/* Call any event callbacks that are applicable */
-		if (old_state == TARGET_DEBUG_RUNNING)
+		if (old_state == TARGET_DEBUG_RUNNING) {
 			target_call_event_callbacks(target, TARGET_EVENT_DEBUG_HALTED);
-		else {
+		} else {
 			/* check whether any core polled by esp_xtensa_smp_update_halt_gdb() requested resume */
 			if (target->smp && other_core_resume_req) {
 				/* Resume xtensa_resume will handle BREAK instruction. */
