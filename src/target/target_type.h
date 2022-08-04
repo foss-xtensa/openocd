@@ -286,7 +286,12 @@ struct target_type {
 	 */
 	int (*gdb_fileio_end)(struct target *target, int retcode, int fileio_errno, bool ctrl_c);
 
-	/* parse target-specific GDB query commands
+	/* Parse target-specific GDB query commands.
+	 * The string pointer "response_p" is always assigned by the called function
+	 * to a pointer to a NULL-terminated string, even when the function returns
+	 * an error. The string memory is not freed by the caller, so this function
+	 * must pay attention for possible memory leaks if the string memory is
+	 * dynamically allocated.
 	 */
 	int (*gdb_query_custom)(struct target *target, const char *packet, char **response_p);
 
