@@ -147,9 +147,9 @@ int esp_xtensa_smp_poll(struct target *target)
 		return ret;
 
 	if (target->smp) {
-		if (target->state == TARGET_RESET) {
+		if (target->state == TARGET_RESET)
 			esp_xtensa_smp->examine_other_cores = ESP_XTENSA_SMP_EXAMINE_OTHER_CORES;
-		} else if (esp_xtensa_smp->examine_other_cores > 0 &&
+		else if (esp_xtensa_smp->examine_other_cores > 0 &&
 			(target->state == TARGET_RUNNING || target->state == TARGET_HALTED)) {
 			LOG_TARGET_DEBUG(target, "Check for unexamined cores after reset");
 			bool all_examined = true;
@@ -178,9 +178,9 @@ int esp_xtensa_smp_poll(struct target *target)
 				return ret;
 		}
 		/* Call any event callbacks that are applicable */
-		if (old_state == TARGET_DEBUG_RUNNING) {
+		if (old_state == TARGET_DEBUG_RUNNING)
 			target_call_event_callbacks(target, TARGET_EVENT_DEBUG_HALTED);
-		} else {
+		else {
 			/* check whether any core polled by esp_xtensa_smp_update_halt_gdb() requested resume */
 			if (target->smp && other_core_resume_req) {
 				/* Resume xtensa_resume will handle BREAK instruction. */
@@ -768,56 +768,56 @@ const struct command_registration esp_xtensa_smp_xtensa_command_handlers[] = {
 	{
 		.name = "xtdef",
 		.handler = esp_xtensa_smp_cmd_xtdef,
-		.mode = COMMAND_ANY,
+		.mode = COMMAND_CONFIG,
 		.help = "Configure Xtensa core type",
 		.usage = "<type>",
 	},
 	{
 		.name = "xtopt",
 		.handler = esp_xtensa_smp_cmd_xtopt,
-		.mode = COMMAND_ANY,
+		.mode = COMMAND_CONFIG,
 		.help = "Configure Xtensa core option",
 		.usage = "<name> <value>",
 	},
 	{
 		.name = "xtmem",
 		.handler = esp_xtensa_smp_cmd_xtmem,
-		.mode = COMMAND_ANY,
+		.mode = COMMAND_CONFIG,
 		.help = "Configure Xtensa memory/cache option",
 		.usage = "<type> [parameters]",
 	},
 	{
 		.name = "xtmmu",
 		.handler = esp_xtensa_smp_cmd_xtmmu,
-		.mode = COMMAND_ANY,
+		.mode = COMMAND_CONFIG,
 		.help = "Configure Xtensa MMU option",
 		.usage = "<NIREFILLENTRIES> <NDREFILLENTRIES> <IVARWAY56> <DVARWAY56>",
 	},
 	{
 		.name = "xtmpu",
 		.handler = esp_xtensa_smp_cmd_xtmpu,
-		.mode = COMMAND_ANY,
+		.mode = COMMAND_CONFIG,
 		.help = "Configure Xtensa MPU option",
 		.usage = "<num FG seg> <min seg size> <lockable> <executeonly>",
 	},
 	{
 		.name = "xtreg",
 		.handler = esp_xtensa_smp_cmd_xtreg,
-		.mode = COMMAND_ANY,
+		.mode = COMMAND_CONFIG,
 		.help = "Configure Xtensa register",
 		.usage = "<regname> <regnum>",
 	},
 	{
 		.name = "xtregs",
 		.handler = esp_xtensa_smp_cmd_xtreg,
-		.mode = COMMAND_ANY,
+		.mode = COMMAND_CONFIG,
 		.help = "Configure number of Xtensa registers",
 		.usage = "<numregs>",
 	},
 	{
 		.name = "xtregfmt",
 		.handler = esp_xtensa_smp_cmd_xtregfmt,
-		.mode = COMMAND_ANY,
+		.mode = COMMAND_CONFIG,
 		.help = "Configure format of Xtensa register map",
 		.usage = "<numgregs>",
 	},

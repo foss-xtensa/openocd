@@ -24,38 +24,38 @@
  */
 
 /* Big-endian vs. little-endian detection */
-#define XT_ISBE(X)						((X)->core_config->bigendian)
+#define XT_ISBE(X)                              ((X)->target->endianness == TARGET_BIG_ENDIAN)
 
 /* 24-bit break; BE version field-swapped then byte-swapped for use in memory R/W fns */
-#define XT_INS_BREAK_LE(S, T)			(0x004000 | (((S) & 0xF) << 8) | (((T) & 0xF) << 4))
-#define XT_INS_BREAK_BE(S, T)			(0x000400 | (((S) & 0xF) << 12) | ((T) & 0xF))
-#define XT_INS_BREAK(X, S, T)			(XT_ISBE(X) ? XT_INS_BREAK_BE(S, T) : XT_INS_BREAK_LE(S, T))
+#define XT_INS_BREAK_LE(S, T)                   (0x004000 | (((S) & 0xF) << 8) | (((T) & 0xF) << 4))
+#define XT_INS_BREAK_BE(S, T)                   (0x000400 | (((S) & 0xF) << 12) | ((T) & 0xF))
+#define XT_INS_BREAK(X, S, T)                   (XT_ISBE(X) ? XT_INS_BREAK_BE(S, T) : XT_INS_BREAK_LE(S, T))
 
 /* 16-bit break; BE version field-swapped then byte-swapped for use in memory R/W fns */
-#define XT_INS_BREAKN_LE(IMM4)			(0xF02D | (((IMM4) & 0xF) << 8))
-#define XT_INS_BREAKN_BE(IMM4)			(0x0FD2 | (((IMM4) & 0xF) << 12))
-#define XT_INS_BREAKN(X, IMM4)			(XT_ISBE(X) ? XT_INS_BREAKN_BE(IMM4) : XT_INS_BREAKN_LE(IMM4))
+#define XT_INS_BREAKN_LE(IMM4)                  (0xF02D | (((IMM4) & 0xF) << 8))
+#define XT_INS_BREAKN_BE(IMM4)                  (0x0FD2 | (((IMM4) & 0xF) << 12))
+#define XT_INS_BREAKN(X, IMM4)                  (XT_ISBE(X) ? XT_INS_BREAKN_BE(IMM4) : XT_INS_BREAKN_LE(IMM4))
 
-#define XT_ISNS_SZ_MAX					3
+#define XT_ISNS_SZ_MAX                          3
 
-#define XT_PS_RING(_v_)					((uint32_t)((_v_) & 0x3) << 6)
-#define XT_PS_RING_MSK					(0x3 << 6)
-#define XT_PS_RING_GET(_v_)				(((_v_) >> 6) & 0x3)
-#define XT_PS_CALLINC_MSK				(0x3 << 16)
-#define XT_PS_OWB_MSK					(0xF << 8)
-#define XT_PS_WOE_MSK					BIT(18)
+#define XT_PS_RING(_v_)                         ((uint32_t)((_v_) & 0x3) << 6)
+#define XT_PS_RING_MSK                          (0x3 << 6)
+#define XT_PS_RING_GET(_v_)                     (((_v_) >> 6) & 0x3)
+#define XT_PS_CALLINC_MSK                       (0x3 << 16)
+#define XT_PS_OWB_MSK                           (0xF << 8)
+#define XT_PS_WOE_MSK                           BIT(18)
 
-#define XT_LOCAL_MEM_REGIONS_NUM_MAX	8
+#define XT_LOCAL_MEM_REGIONS_NUM_MAX            8
 
-#define XT_AREGS_NUM_MAX				64
-#define XT_USER_REGS_NUM_MAX			256
+#define XT_AREGS_NUM_MAX                        64
+#define XT_USER_REGS_NUM_MAX                    256
 
-#define XT_MEM_ACCESS_NONE				0x0
-#define XT_MEM_ACCESS_READ				0x1
-#define XT_MEM_ACCESS_WRITE				0x2
+#define XT_MEM_ACCESS_NONE                      0x0
+#define XT_MEM_ACCESS_READ                      0x1
+#define XT_MEM_ACCESS_WRITE                     0x2
 
-#define XT_MAX_TIE_REG_WIDTH			(512)	/* TIE register file max 4096 bits */
-#define XT_QUERYPKT_RESP_MAX			(XT_MAX_TIE_REG_WIDTH * 2 + 1)
+#define XT_MAX_TIE_REG_WIDTH                    (512)	/* TIE register file max 4096 bits */
+#define XT_QUERYPKT_RESP_MAX                    (XT_MAX_TIE_REG_WIDTH * 2 + 1)
 
 enum xtensa_qerr_e {
 	XT_QERR_INTERNAL = 0,
@@ -143,7 +143,6 @@ struct xtensa_tracing_config {
 
 struct xtensa_config {
 	enum xtensa_type core_type;
-	bool bigendian;
 	uint8_t aregs_num;
 	bool windowed;
 	bool coproc;

@@ -14,7 +14,6 @@
 #include <target/target_type.h>
 #include <target/smp.h>
 #include "assert.h"
-#include "esp32s3.h"
 #include "esp_xtensa_smp.h"
 
 /*
@@ -218,9 +217,8 @@ static int esp32s3_soc_reset(struct target *target)
 		res = target_write_buffer(target, ESP32_S3_RTC_SLOW_MEM_BASE, sizeof(slow_mem_save), slow_mem_save);
 		if (res != ERROR_OK)
 			LOG_TARGET_ERROR(target, "Failed to restore contents of RTC_SLOW_MEM (%d)!", res);
-	} else {
+	} else
 		LOG_TARGET_ERROR(target, "Timed out waiting for CPU to be halted after SoC reset");
-	}
 
 	return get_timeout ? ERROR_TARGET_TIMEOUT : res;
 }
@@ -300,7 +298,6 @@ static int esp32s3_virt2phys(struct target *target,
 	}
 	return ERROR_FAIL;
 }
-
 
 static int esp32s3_target_init(struct command_context *cmd_ctx, struct target *target)
 {

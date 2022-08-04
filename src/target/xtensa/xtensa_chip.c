@@ -1,20 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+
 /***************************************************************************
  *   Xtensa Chip-level Target Support for OpenOCD                          *
  *   Copyright (C) 2020-2022 Cadence Design Systems, Inc.                  *
  *   Author: Ian Thompson <ianst@cadence.com>                              *
- *                                                                         *
- *   This program is free software; you can redistribute it and/or modify  *
- *   it under the terms of the GNU General Public License as published by  *
- *   the Free Software Foundation; either version 2 of the License, or     *
- *   (at your option) any later version.                                   *
- *                                                                         *
- *   This program is distributed in the hope that it will be useful,       *
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
- *   GNU General Public License for more details.                          *
- *                                                                         *
- *   You should have received a copy of the GNU General Public License     *
- *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  ***************************************************************************/
 
 #ifdef HAVE_CONFIG_H
@@ -29,13 +18,9 @@
 #include "xtensa_chip.h"
 
 int xtensa_chip_init_arch_info(struct target *target, void *arch_info,
-		struct xtensa_debug_module_config *dm_cfg)
+	struct xtensa_debug_module_config *dm_cfg)
 {
 	struct xtensa_chip_common *xtensa_chip = (struct xtensa_chip_common *)arch_info;
-	if (!dm_cfg->queue_tdi_idle && dm_cfg->tap) {
-		dm_cfg->queue_tdi_idle = xtensa_chip_queue_tdi_idle;
-		dm_cfg->queue_tdi_idle_arg = target;
-	}
 	int ret = xtensa_init_arch_info(target, &xtensa_chip->xtensa, dm_cfg);
 	if (ret != ERROR_OK)
 		return ret;
@@ -57,9 +42,7 @@ int xtensa_chip_arch_state(struct target *target)
 static int xtensa_chip_poll(struct target *target)
 {
 	enum target_state old_state = target->state;
-	int ret;
-
-	ret = xtensa_poll(target);
+	int ret = xtensa_poll(target);
 
 	if (old_state != TARGET_HALTED && target->state == TARGET_HALTED) {
 		/*Call any event callbacks that are applicable */
@@ -70,35 +53,6 @@ static int xtensa_chip_poll(struct target *target)
 	}
 
 	return ret;
-}
-
-/*
- * TODO: Remove if possible
- *
-The TDI pin is also used as a flash Vcc bootstrap pin. If we reset the CPU externally, the last state of the TDI pin can
-allow the power to an 1.8V flash chip to be raised to 3.3V, or the other way around.
-*/
-void xtensa_chip_queue_tdi_idle(struct target *target)
-{
-	static uint32_t value;
-	uint8_t t[4] = { 0, 0, 0, 0 };
-
-#if 0
-	struct xtensa *xtensa = target_to_xtensa(target);
-	struct xtensa_chip_common *xtensa_chip = xtensa->xtensa_chip;
-	if (xtensa_chip->flash_bootstrap == FBS_TMSLOW) {
-		/*Make sure tdi is 0 at the exit of queue execution */
-		value = 0;
-	} else if (xtensa_chip->flash_bootstrap == FBS_TMSHIGH) {
-		/*Make sure tdi is 1 at the exit of queue execution */
-		value = 1;
-	} else
-		return;
-#endif
-
-	/* Scan out 1 bit, do not move from IRPAUSE after we're done. */
-	buf_set_u32(t, 0, 1, value);
-	jtag_add_plain_ir_scan(1, t, NULL, TAP_IRPAUSE);
 }
 
 static int xtensa_chip_virt2phys(struct target *target,
@@ -153,7 +107,6 @@ static int xtensa_chip_target_create(struct target *target, Jim_Interp *interp)
 	target->debug_reason = DBG_REASON_NOTHALTED;
 	return ERROR_OK;
 }
-
 
 void xtensa_chip_target_deinit(struct target *target)
 {

@@ -16,7 +16,6 @@
 #include <target/target_type.h>
 #include <target/smp.h>
 #include "assert.h"
-#include "esp32.h"
 #include "esp_xtensa_smp.h"
 
 /*
@@ -205,7 +204,8 @@ static int esp32_soc_reset(struct target *target)
 		alive_sleep(10);
 		xtensa_poll(target);
 		if (timeval_ms() >= timeout) {
-			LOG_TARGET_ERROR(target, "Timed out waiting for CPU to be reset, target state=%d", target->state);
+			LOG_TARGET_ERROR(target, "Timed out waiting for CPU to be reset, target state=%d",
+				target->state);
 			get_timeout = true;
 			break;
 		}
@@ -220,9 +220,8 @@ static int esp32_soc_reset(struct target *target)
 		res = target_write_buffer(target, ESP32_RTC_SLOW_MEM_BASE, sizeof(slow_mem_save), slow_mem_save);
 		if (res != ERROR_OK)
 			LOG_TARGET_ERROR(target, "Failed to restore contents of RTC_SLOW_MEM (%d)!", res);
-	} else {
+	} else
 		LOG_TARGET_ERROR(target, "Timed out waiting for CPU to be halted after SoC reset");
-	}
 
 	return get_timeout ? ERROR_TARGET_TIMEOUT : res;
 }

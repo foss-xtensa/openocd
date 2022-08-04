@@ -33,7 +33,7 @@ enum xtensa_reg_id {
 	XT_REG_IDX_AR13,
 	XT_REG_IDX_AR14,
 	XT_REG_IDX_AR15,
-	XT_REG_IDX_ARLAST = XT_REG_IDX_AR15 + 48,	/* Max 64 ARs */
+	XT_REG_IDX_ARLAST = 64,	/* Max 64 ARs */
 	XT_REG_IDX_WINDOWBASE,
 	XT_REG_IDX_WINDOWSTART,
 	XT_REG_IDX_PS,
@@ -78,8 +78,8 @@ enum xtensa_reg_type {
 	XT_REG_USER = 1,		/* User register, needs RUR to read */
 	XT_REG_SPECIAL = 2,		/* Special register, needs RSR to read */
 	XT_REG_DEBUG = 3,		/* Register used for the debug interface. Don't mess with this. */
-	XT_REG_RELGEN = 4,		/* Relative general address. Points to the absolute addresses
-							 * plus the window index */
+	XT_REG_RELGEN = 4,		/* Relative general address. Points to the absolute addresses plus the window
+					 * index */
 	XT_REG_FR = 5,			/* Floating-point register */
 	XT_REG_TIE = 6,			/* TIE (custom) register */
 	XT_REG_OTHER = 7,		/* Other (typically legacy) register */
@@ -120,7 +120,6 @@ struct xtensa_reg_desc {
 	enum xtensa_reg_type type;
 	enum xtensa_reg_flags flags;
 };
-
 
 #define _XT_MK_DBREGN(reg_num, reg_type)					\
 	((reg_type ## _VAL) | (reg_num))

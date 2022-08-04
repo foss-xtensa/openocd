@@ -15,7 +15,6 @@
 #include <target/target.h>
 #include <target/target_type.h>
 #include "esp_xtensa.h"
-#include "esp32s2.h"
 
 /* Overall memory map
  * TODO: read memory configuration from target registers */
@@ -293,7 +292,8 @@ static int esp32s2_soc_reset(struct target *target)
 		alive_sleep(10);
 		xtensa_poll(target);
 		if (timeval_ms() >= timeout) {
-			LOG_TARGET_ERROR(target, "Timed out waiting for CPU to be reset, target state=%d", target->state);
+			LOG_TARGET_ERROR(target, "Timed out waiting for CPU to be reset, target state=%d",
+				target->state);
 			return ERROR_TARGET_TIMEOUT;
 		}
 	}
@@ -404,9 +404,9 @@ static int esp32s2_poll(struct target *target)
 
 	if (old_state != TARGET_HALTED && target->state == TARGET_HALTED) {
 		/* Call any event callbacks that are applicable */
-		if (old_state == TARGET_DEBUG_RUNNING) {
+		if (old_state == TARGET_DEBUG_RUNNING)
 			target_call_event_callbacks(target, TARGET_EVENT_DEBUG_HALTED);
-		} else {
+		else {
 			esp32s2_on_halt(target);
 			target_call_event_callbacks(target, TARGET_EVENT_HALTED);
 		}
@@ -470,8 +470,6 @@ static int esp32s2_target_create(struct target *target, Jim_Interp *interp)
 
 static const struct command_registration esp32s2_command_handlers[] = {
 	{
-		.mode = COMMAND_ANY,
-		.help = "Xtensa commands group",
 		.chain = xtensa_command_handlers,
 	},
 	COMMAND_REGISTRATION_DONE

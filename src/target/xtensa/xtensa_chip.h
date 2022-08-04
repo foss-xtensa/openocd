@@ -1,20 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+
 /***************************************************************************
  *   Xtensa Chip-level Target Support for OpenOCD                          *
  *   Copyright (C) 2020-2022 Cadence Design Systems, Inc.                  *
  *   Author: Ian Thompson <ianst@cadence.com>                              *
- *                                                                         *
- *   This program is free software; you can redistribute it and/or modify  *
- *   it under the terms of the GNU General Public License as published by  *
- *   the Free Software Foundation; either version 2 of the License, or     *
- *   (at your option) any later version.                                   *
- *                                                                         *
- *   This program is distributed in the hope that it will be useful,       *
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
- *   GNU General Public License for more details.                          *
- *                                                                         *
- *   You should have received a copy of the GNU General Public License     *
- *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
  ***************************************************************************/
 
 #ifndef OPENOCD_TARGET_XTENSA_CHIP_H
@@ -35,7 +24,7 @@ static inline struct xtensa_chip_common *target_to_xtensa_chip(struct target *ta
 }
 
 int xtensa_chip_init_arch_info(struct target *target, void *arch_info,
-		struct xtensa_debug_module_config *dm_cfg);
+	struct xtensa_debug_module_config *dm_cfg);
 int xtensa_chip_target_init(struct command_context *cmd_ctx, struct target *target);
 int xtensa_chip_arch_state(struct target *target);
 void xtensa_chip_queue_tdi_idle(struct target *target);
