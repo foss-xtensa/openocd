@@ -1510,6 +1510,12 @@ int target_gdb_fileio_end(struct target *target, int retcode, int fileio_errno, 
 	return target->type->gdb_fileio_end(target, retcode, fileio_errno, ctrl_c);
 }
 
+bool target_restart_requires_response(struct target *target)
+{
+	return target->type->gdb_restart_resp_req && 
+        target->type->gdb_restart_resp_req(target);
+}
+
 target_addr_t target_address_max(struct target *target)
 {
 	unsigned bits = target_address_bits(target);

@@ -11052,6 +11052,11 @@ By default accessing memory beyond defined regions is forbidden. This commnd con
 When set to (1), skips access controls and address range check before read/write memory.
 @end deffn
 
+@deffn Command {xtensa reset_response} (@option{on}|@option{off})
+When enabled, respond to GDB reset command.  Provides backward-compatibility
+with older @code{xt-gdb} versions.  Will be removed.
+@end deffn
+
 @deffn {Command} {xtensa smpbreak} [none|breakinout|runstall] | [BreakIn] [BreakOut] [RunStallIn] [DebugModeOut]
 Configures debug signals connection ("break network") for currently selected core.
 @itemize @bullet

@@ -1131,7 +1131,7 @@ static void jtag_examine_chain_display(enum log_levels level, const char *msg,
 	const char *name, uint32_t idcode)
 {
 	log_printf_lf(level, __FILE__, __LINE__, __func__,
-		"JTAG tap: %s %16.16s: 0x%08x "
+		"JTAG tap: %s %16.20s: 0x%08x "
 		"(mfg: 0x%3.3x (%s), part: 0x%4.4x, ver: 0x%1.1x)",
 		name, msg,
 		(unsigned int)idcode,

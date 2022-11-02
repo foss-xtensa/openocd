@@ -678,6 +678,11 @@ int target_get_gdb_fileio_info(struct target *target, struct gdb_fileio_info *fi
 int target_gdb_fileio_end(struct target *target, int retcode, int fileio_errno, bool ctrl_c);
 
 /**
+ * Check if target requires GDB restart packet response.
+ */
+bool target_restart_requires_response(struct target *target);
+
+/**
  * Return the highest accessible address for this target.
  */
 target_addr_t target_address_max(struct target *target);
@@ -802,6 +807,6 @@ int target_profiling_default(struct target *target, uint32_t *samples, uint32_t
 
 extern bool get_target_reset_nag(void);
 
-#define TARGET_DEFAULT_POLLING_INTERVAL		100
+#define TARGET_DEFAULT_POLLING_INTERVAL		10
 
 #endif /* OPENOCD_TARGET_TARGET_H */
