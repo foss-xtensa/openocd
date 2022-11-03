@@ -1281,7 +1281,8 @@ int xtensa_fetch_all_regs(struct target *target)
 						xtensa_queue_dbg_reg_read(xtensa, XDMREG_DSR, dsrs[i].buf);
 						reg_fetched = false;
 					}
-				} else if (reg_num == xtensa_regs[XT_REG_IDX_PS].reg_num) {
+				} else if ((xtensa->core_config->core_type == XT_LX)
+					&& (reg_num == xtensa_regs[XT_REG_IDX_PS].reg_num)) {
 					/* reg number of PS for debug interrupt depends on NDEBUGLEVEL */
 					reg_num = XT_EPS_REG_NUM_BASE + xtensa->core_config->debug.irq_level;
 					xtensa_queue_exec_ins(xtensa, XT_INS_RSR(xtensa, reg_num, XT_REG_A3));
