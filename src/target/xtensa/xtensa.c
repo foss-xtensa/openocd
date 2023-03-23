@@ -841,8 +841,7 @@ int xtensa_examine(struct target *target)
 		return ERROR_TARGET_FAILURE;
 	}
 	LOG_DEBUG("OCD_ID = %08" PRIx32, xtensa->dbg_mod.device_id);
-	if (!target_was_examined(target))
-		target_set_examined(target);
+	target_set_examined(target);
 	xtensa_smpbreak_write(xtensa, xtensa->smp_break);
 	return ERROR_OK;
 }
@@ -921,7 +920,7 @@ static inline void xtensa_reg_set_value(struct reg *reg, xtensa_reg_val_t value)
 static int xtensa_imprecise_exception_occurred(struct target *target)
 {
 	struct xtensa *xtensa = target_to_xtensa(target);
-	for (xtensa_nx_reg_idx idx = XT_NX_REG_IDX_IEVEC; idx <= XT_NX_REG_IDX_MESR; idx++) {
+	for (enum xtensa_nx_reg_idx idx = XT_NX_REG_IDX_IEVEC; idx <= XT_NX_REG_IDX_MESR; idx++) {
 		enum xtensa_reg_id ridx = xtensa->nx_reg_idx[idx];
 		if (xtensa->nx_reg_idx[idx]) {
 			xtensa_reg_val_t reg = xtensa_reg_get(target, xtensa->nx_reg_idx[idx]);
@@ -938,7 +937,7 @@ static int xtensa_imprecise_exception_occurred(struct target *target)
 static void xtensa_imprecise_exception_clear(struct target *target)
 {
 	struct xtensa *xtensa = target_to_xtensa(target);
-	for (xtensa_nx_reg_idx idx = XT_NX_REG_IDX_IEVEC; idx <= XT_NX_REG_IDX_MESRCLR; idx++) {
+	for (enum xtensa_nx_reg_idx idx = XT_NX_REG_IDX_IEVEC; idx <= XT_NX_REG_IDX_MESRCLR; idx++) {
 		enum xtensa_reg_id ridx = xtensa->nx_reg_idx[idx];
 		if (ridx && idx != XT_NX_REG_IDX_MESR) {
 			xtensa_reg_val_t value = (idx == XT_NX_REG_IDX_MESRCLR) ? XT_MESRCLR_IMPR_EXC_MSK : 0;
@@ -1044,29 +1043,29 @@ uint32_t xtensa_cause_get(struct target *target)
 		uint32_t dsr = xtensa_dm_core_status_get(&xtensa->dbg_mod);
 		/* NX causes are prioritized; only 1 bit can be set */
 		switch ((dsr & OCDDSR_STOPCAUSE) >> OCDDSR_STOPCAUSE_SHIFT) {
-			case OCDDSR_STOPCAUSE_DI:
-				xtensa->nx_stop_cause = DEBUGCAUSE_DI;
-				break;
-			case OCDDSR_STOPCAUSE_SS:
-				xtensa->nx_stop_cause = DEBUGCAUSE_IC;
-				break;
-			case OCDDSR_STOPCAUSE_IB:
-				xtensa->nx_stop_cause = DEBUGCAUSE_IB;
-				break;
-			case OCDDSR_STOPCAUSE_B:
-			case OCDDSR_STOPCAUSE_B1:
-				xtensa->nx_stop_cause = DEBUGCAUSE_BI;
-				break;
-			case OCDDSR_STOPCAUSE_BN:
-				xtensa->nx_stop_cause = DEBUGCAUSE_BN;
-				break;
-			case OCDDSR_STOPCAUSE_DB0:
-			case OCDDSR_STOPCAUSE_DB1:
-				xtensa->nx_stop_cause = DEBUGCAUSE_DB;
-				break;
-			default:
-				LOG_TARGET_ERROR(target, "Unknown stop cause (DSR: 0x%08x)", dsr);
-				break;
+		case OCDDSR_STOPCAUSE_DI:
+			xtensa->nx_stop_cause = DEBUGCAUSE_DI;
+			break;
+		case OCDDSR_STOPCAUSE_SS:
+			xtensa->nx_stop_cause = DEBUGCAUSE_IC;
+			break;
+		case OCDDSR_STOPCAUSE_IB:
+			xtensa->nx_stop_cause = DEBUGCAUSE_IB;
+			break;
+		case OCDDSR_STOPCAUSE_B:
+		case OCDDSR_STOPCAUSE_B1:
+			xtensa->nx_stop_cause = DEBUGCAUSE_BI;
+			break;
+		case OCDDSR_STOPCAUSE_BN:
+			xtensa->nx_stop_cause = DEBUGCAUSE_BN;
+			break;
+		case OCDDSR_STOPCAUSE_DB0:
+		case OCDDSR_STOPCAUSE_DB1:
+			xtensa->nx_stop_cause = DEBUGCAUSE_DB;
+			break;
+		default:
+			LOG_TARGET_ERROR(target, "Unknown stop cause (DSR: 0x%08x)", dsr);
+			break;
 		}
 		if (xtensa->nx_stop_cause)
 			xtensa->nx_stop_cause |= DEBUGCAUSE_VALID;
@@ -3688,7 +3687,7 @@ COMMAND_HELPER(xtensa_cmd_xtreg_do, struct xtensa *xtensa)
 			LOG_DEBUG("Setting PS (%s) index to %d", rptr->name, xtensa->eps_dbglevel_idx);
 		}
 		if (xtensa->core_config->core_type == XT_NX) {
-			xtensa_nx_reg_idx idx = XT_NX_REG_IDX_NUM;
+			enum xtensa_nx_reg_idx idx = XT_NX_REG_IDX_NUM;
 			if (strcmp(rptr->name, "ibreakc0") == 0)
 				idx = XT_NX_REG_IDX_IBREAKC0;
 			else if (strcmp(rptr->name, "wb") == 0)
@@ -3899,7 +3898,7 @@ COMMAND_HELPER(xtensa_cmd_mask_interrupts_do, struct xtensa *xtensa)
 		return ERROR_OK;
 	}
 
-	if (xtensa->core_config->core_type != XT_LX) {
+	if (xtensa->core_config->core_type == XT_NX) {
 		command_print(CMD, "ERROR: ISR step mode only supported on Xtensa LX");
 		return ERROR_FAIL;
 	}

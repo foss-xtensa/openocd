@@ -18,9 +18,6 @@
 #include "config.h"
 #endif
 
-/* see Embedded-HOWTO.txt in Jim Tcl project hosted on BerliOS*/
-#define JIM_EMBEDDED
-
 /* @todo the inclusion of target.h here is a layering violation */
 #include <jtag/jtag.h>
 #include <target/target.h>
@@ -543,8 +540,16 @@ static int run_command(struct command_context *context,
 		if (retval != ERROR_OK)
 			LOG_DEBUG("Command '%s' failed with error code %d",
 						words[0], retval);
-		/* Use the command output as the Tcl result */
-		Jim_SetResult(context->interp, cmd.output);
+		/*
+		 * Use the command output as the Tcl result.
+		 * Drop last '\n' to allow command output concatenation
+		 * while keep using command_print() everywhere.
+		 */
+		const char *output_txt = Jim_String(cmd.output);
+		int len = strlen(output_txt);
+		if (len && output_txt[len - 1] == '\n')
+			--len;
+		Jim_SetResultString(context->interp, output_txt, len);
 	}
 	Jim_DecrRefCount(context->interp, cmd.output);
 
@@ -936,19 +941,7 @@ static int jim_command_dispatch(Jim_Interp *interp, int argc, Jim_Obj * const *a
 	if (!command_can_run(cmd_ctx, c, Jim_GetString(argv[0], NULL)))
 		return JIM_ERR;
 
-	/*
-	 * TODO: to be removed after v0.12.0
-	 * workaround for https://sourceforge.net/p/openocd/tickets/362/
-	 * After syntax change of "expr" in jimtcl 0.81
-	 * the replacement of jimtcl "expr" with openocd version in
-	 * https://review.openocd.org/6510/
-	 * introduces too many target polling during math expressions with
-	 * "expr" commands.
-	 * After v0.12.0 replace the following two lines with
-	 * target_call_timer_callbacks();
-	 */
-	if (strcmp(c->name, "expr"))
-		target_call_timer_callbacks_now();
+	target_call_timer_callbacks();
 
 	/*
 	 * Black magic of overridden current target:

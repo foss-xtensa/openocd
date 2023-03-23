@@ -194,7 +194,7 @@ enum xtensa_stepping_isr_mode {
 	XT_STEPPING_ISR_ON,		/* interrupts are enabled during stepping */
 };
 
-typedef enum xtensa_nx_reg_idx_e {
+enum xtensa_nx_reg_idx {
 	XT_NX_REG_IDX_IBREAKC0 = 0,
 	XT_NX_REG_IDX_WB,
 	XT_NX_REG_IDX_MS,
@@ -203,7 +203,7 @@ typedef enum xtensa_nx_reg_idx_e {
 	XT_NX_REG_IDX_MESR,
 	XT_NX_REG_IDX_MESRCLR,
 	XT_NX_REG_IDX_NUM
-} xtensa_nx_reg_idx;
+};
 
 /* Only supported in cores with in-CPU MMU. None of Espressif chips as of now. */
 enum xtensa_mode {
