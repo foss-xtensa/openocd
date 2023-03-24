@@ -806,6 +806,6 @@ int target_profiling_default(struct target *target, uint32_t *samples, uint32_t
 
 extern bool get_target_reset_nag(void);
 
-#define TARGET_DEFAULT_POLLING_INTERVAL		100
+#define TARGET_DEFAULT_POLLING_INTERVAL		10
 
 #endif /* OPENOCD_TARGET_TARGET_H */
