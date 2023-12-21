@@ -253,6 +253,11 @@ static int vdebug_socket_open(char *server_addr, uint32_t port)
 	hsock = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
 	if (hsock == INVALID_SOCKET)
 		rc = vdebug_socket_error();
+#elif defined __CYGWIN__
+	/* SO_RCVLOWAT unsupported */
+	hsock = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+	if (hsock < 0)
+		rc = errno;
 #else
 	uint32_t rcvwat = VD_SHEADER_LEN;    /* size of the rcv header, as rcv min watermark */
 	hsock = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
