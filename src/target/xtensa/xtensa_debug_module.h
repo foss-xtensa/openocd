@@ -501,6 +501,7 @@ struct xtensa_debug_module {
 	uint32_t ap_offset;
 };
 
+enum xtensa_dm_reg xtensa_dm_regaddr_to_id(uint32_t addr);
 int xtensa_dm_init(struct xtensa_debug_module *dm, const struct xtensa_debug_module_config *cfg);
 void xtensa_dm_deinit(struct xtensa_debug_module *dm);
 int xtensa_dm_poll(struct xtensa_debug_module *dm);

@@ -34,7 +34,7 @@ static const struct xtensa_dm_pwr_reg_offsets xdm_pwr_regs[XDMREG_PWRNUM] =
 static const struct xtensa_dm_reg_offsets xdm_regs[XDMREG_NUM] =
 	XTENSA_DM_REG_OFFSETS;
 
-static enum xtensa_dm_reg xtensa_dm_regaddr_to_id(uint32_t addr)
+enum xtensa_dm_reg xtensa_dm_regaddr_to_id(uint32_t addr)
 {
 	enum xtensa_dm_reg id;
 	uint32_t addr_masked = (addr & (XTENSA_DM_APB_ALIGN - 1));

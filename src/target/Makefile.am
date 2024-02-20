@@ -46,6 +46,7 @@ TARGET_CORE_SRC = \
 	%D%/testee.c \
 	%D%/semihosting_common.c \
 	%D%/smp.c \
+	%D%/trax.c \
 	%D%/rtt.c
 
 ARMV4_5_SRC = \
@@ -236,6 +237,7 @@ ARC_SRC = \
 	%D%/arc_cmd.h \
 	%D%/arc_jtag.h \
 	%D%/arc_mem.h \
+	%D%/trax.h \
 	%D%/rtt.h
 
 include %D%/openrisc/Makefile.am

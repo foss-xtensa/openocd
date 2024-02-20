@@ -1,0 +1,40 @@
+===================
+Xtensa TRAX Support
+===================
+
+The generic Xtensa target layer in this OpenOCD fork contains support
+for running with the Xtensa TRAX toolchain utility xt-traxcmd.  
+
+For more information on using xt-traxcmd, see the Xtensa Debug Guide.
+The same features and commands described in the TRAX chapters work with 
+both XOCD and OpenOCD.
+
+This feature is *not* expected to be merged upstream to openocd.org.
+
+
+===============
+TRAX Quickstart
+===============
+
+Starting OpenOCD with TRAX requires adding one additional .cfg file,
+target/xtensa-trax.cfg, onto the typical Xtensa OpenOCD command-line:
+
+  openocd -s tcl -f interface/jlink.cfg -f board/xtensa-kc705-ext.cfg
+          -f xtensa-core-<config_name>.cfg -f target/xtensa-trax.cfg 
+
+After OpenOCD startup, verifiy that OpenOCD is listening on two ports:
+the GDB port (typically 3333) and the TRAX port (defaults to 11444).
+
+Connect GDB to OpenOCD as usual, and issue any required reset and/or 
+executable load commands.  Prior to running the code to be traced, 
+open an Xtensa command shell and start xt-traxcmd, which will connect 
+to the OpenOCD TRAX port, resulting in output similar to:
+
+  xt-traxcmd version 15.03
+  Connected to TRAX-PC version 4.1 (Xtensa), pre-configured CFGID=0xBFF0, 64b max-inst-sz, *AMTRAX*
+  TRAX trace memory size = 8192 bytes
+  (trax)
+
+Example TRAX setup commands can be found in chapter 12.5 of the 
+Xtensa Debug Guide.  Once a trace has been captured adn saved, it can
+be processed using the xt-traxview utility as described in chapter 13.

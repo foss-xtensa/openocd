@@ -12,6 +12,8 @@ noinst_LTLIBRARIES += %D%/libserver.la
 	%D%/tcl_server.h \
 	%D%/rtt_server.c \
 	%D%/rtt_server.h \
+	%D%/trax_server.c \
+	%D%/trax_server.h \
 	%D%/ipdbg.c \
 	%D%/ipdbg.h
 

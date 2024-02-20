@@ -17,6 +17,7 @@
 #include <helper/align.h>
 #include <target/register.h>
 #include <target/algorithm.h>
+#include <trax/trax.h>
 
 #include "xtensa_chip.h"
 #include "xtensa.h"
@@ -4545,6 +4546,9 @@ const struct command_registration xtensa_command_handlers[] = {
 		.help = "Xtensa command group",
 		.usage = "",
 		.chain = xtensa_any_command_handlers,
+	},
+	{
+		.chain = trax_target_command_handlers,
 	},
 	COMMAND_REGISTRATION_DONE
 };
