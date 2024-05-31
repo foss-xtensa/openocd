@@ -109,6 +109,10 @@ int target_trax_attach(struct target *target, bool *found, bool *is_xtensa)
 		}
 		xtensa_ocdid_t devid = xtensa_dm_device_id_get(&xtensa->dbg_mod);
 		LOG_INFO("trax: xtensa devid is 0x%x", devid);
+		if (xtensa->dbg_mod.tap)
+		    LOG_INFO("trax: xtensa TAP IDCODE: 0x%x", xtensa->dbg_mod.tap->idcode);
+		if (xtensa->dbg_mod.dap && xtensa->dbg_mod.dap->tap)
+		    LOG_INFO("trax: xtensa DAP/JTAG IDCODE: 0x%x", xtensa->dbg_mod.dap->tap->idcode);
 
 		if (found)
 			*found = (((devid >> TRAX_ID_PRODNO_SHIFT) & TRAX_ID_PRODNO_MASK) == TRAX_ID_PRODNO_TRAX_XTENSA);

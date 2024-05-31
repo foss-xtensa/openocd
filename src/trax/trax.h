@@ -147,67 +147,41 @@ struct trax_source {
 };
 
 /**
- * Initialize Real-Time Transfer (TRAX).
+ * Initialize TRAX module
  *
  * @returns ERROR_OK on success, an error code on failure.
  */
 int trax_init(void);
 
 /**
- * Shutdown Real-Time Transfer (TRAX).
+ * Shutdown TRAX module
  *
  * @returns ERROR_OK on success, an error code on failure.
  */
 int trax_exit(void);
 
 /**
- * Register an TRAX source for a target.
+ * Start TRAX module
  *
- * @param[in] source TRAX source.
+ * @param[in] TRAX device ID (zero-based).
  * @param[in,out] target.
+ * @param[in] source TRAX source.
  *
  * @returns ERROR_OK on success, an error code on failure.
  */
-int trax_register_source(const struct trax_source source,
-		struct target *target);
+int trax_start(unsigned int trid, struct target *target, const struct trax_source source);
 
 /**
- * Setup TRAX.
+ * Stop TRAX module
+ *
+ * @param[in] TRAX device ID (zero-based).
  *
  * @returns ERROR_OK on success, an error code on failure.
  */
-int trax_setup(void);
+int trax_stop(unsigned int trid);
 
 /**
- * Start Real-Time Transfer (TRAX).
- *
- * @returns ERROR_OK on success, an error code on failure.
- */
-int trax_start(void);
-
-/**
- * Stop Real-Time Transfer (TRAX).
- *
- * @returns ERROR_OK on success, an error code on failure.
- */
-int trax_stop(void);
-
-/**
- * Get whether TRAX is started.
- *
- * @returns Whether TRAX is started.
- */
-bool trax_started(void);
-
-/**
- * Get whether TRAX is configured.
- *
- * @returns Whether TRAX is configured.
- */
-bool trax_configured(void);
-
-/**
- * Register an TRAX sink.
+ * Register a TRAX sink.
  *
  * @param[in] channel_index Channel index.
  * @param[in,out] user_data User data to be passed to the callback function.
@@ -217,7 +191,7 @@ bool trax_configured(void);
 int trax_register_sink(unsigned int channel_index, void *user_data);
 
 /**
- * Unregister an TRAX sink.
+ * Unregister a TRAX sink.
  *
  * @param[in] channel_index Channel index.
  * @param[in,out] user_data User data to be passed to the callback function.
@@ -227,7 +201,7 @@ int trax_register_sink(unsigned int channel_index, void *user_data);
 int trax_unregister_sink(unsigned int channel_index, void *user_data);
 
 /**
- * Write to an TRAX channel.
+ * Write to a TRAX channel.
  *
  * @param[in] channel_index Channel index.
  * @param[in] buffer Data that should be written to the channel.

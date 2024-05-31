@@ -25,22 +25,16 @@
 #include "tpack.h"
 
 
-#define	DEVICE_COUNT		1
-#define RETRY_MAX			100
-#define	MEMACCESS_BUFLEN	(1024 * 1024)	// Buffer for incoming memory access commands
+#define TRAX_TARGETS_PER_DEV	1
+#define RETRY_MAX				100
+#define	MEMACCESS_BUFLEN		(1024 * 1024)	// Buffer for incoming memory access commands
 
-
-static struct {
+struct trax {
+	bool valid;
 	struct trax_source source;
 	/** Control block. */
 	struct trax_control ctrl;
 	struct target *target;
-	/** Whether TRAX is configured. */
-	bool configured;
-	/** Whether TRAX is started. */
-	bool started;
-	/** Whether configuration changed. */
-	bool changed;
 	/** Whether a TRAX device was found. */
 	bool found;
 	/** Whether TRAX device is Xtensa flavor. */
@@ -57,150 +51,201 @@ static struct {
 	uint32_t start_addr;
 	uint32_t end_addr;
 	uint32_t ram_size;
-} trax;
+};
+
+struct trax *trax;
+unsigned int ntrax;
 
 
 // Local declarations
-static int trax_tsock_create(void);
-static int trax_tsock_release(void);
-static int trax_tpack_gchan_rx_packet(tpack_channel *tchan, void *arg,
+static tpack_socket *trax_tsock_create(unsigned int trid);
+static void trax_tsock_release(struct trax *ptrax);
+static int trax_tpack_gchan_rx_packet(tpack_channel *gchan, void *arg,
 				int pieceno, tpack_header *packet, int len);
 static int trax_tpack_tchan_rx_packet(tpack_channel *tchan, void *arg,
 				int pieceno, tpack_header *packet, int len);
-static int trax_readmem(uint8_t *data, uint32_t addr, uint32_t count);
-static int trax_writemem(uint8_t *data, uint32_t addr, uint32_t count);
+static int trax_readmem(struct trax *ptrax, uint8_t *data, uint32_t addr, uint32_t count);
+static int trax_writemem(struct trax *ptrax, uint8_t *data, uint32_t addr, uint32_t count);
 
 
-int trax_init(void)
+static struct trax *trax_get_ptr(unsigned int chid)
 {
-	trax.sink_list_length = 1;
-	trax.sink_list = calloc(trax.sink_list_length, sizeof(struct trax_sink_list *));
-	trax.memaccess_buf = calloc(MEMACCESS_BUFLEN, 1);
+	if (chid >= ntrax || !trax)
+		return NULL;
+	return &trax[chid];
+}
 
-	if (!trax.sink_list || !trax.memaccess_buf) {
-		free(trax.sink_list);
-		free(trax.memaccess_buf);
+static int trax_alloc(unsigned int trid)
+{
+	struct trax *ptrax;
+	if (trid >= ntrax) {
+		unsigned int newlen = trid + 1;
+		struct trax *tmp = realloc(trax, sizeof(struct trax) * newlen);
+		if (!tmp)
+			return ERROR_FAIL;
+		for (size_t i = ntrax; i < newlen; i++)
+			tmp[i].valid = false;
+		trax = tmp;
+		ntrax = newlen;
+	}
+
+	ptrax = &trax[trid];
+	memset(ptrax, 0, sizeof(struct trax));
+	ptrax->sink_list_length = 1;
+	ptrax->sink_list = calloc(ptrax->sink_list_length, sizeof(struct trax_sink_list *));
+	ptrax->memaccess_buf = calloc(MEMACCESS_BUFLEN, 1);
+
+	if (!ptrax->sink_list || !ptrax->memaccess_buf) {
+		free(ptrax->sink_list);
+		free(ptrax->memaccess_buf);
+		ptrax->valid = false;
 		return ERROR_FAIL;
 	}
 
-	trax.sink_list[0] = NULL;
-	trax.started = false;
-
+	ptrax->valid = true;
 	return ERROR_OK;
+}
+
+static int trax_free(unsigned int trid)
+{
+	struct trax *ptrax = trax_get_ptr(trid);
+	if (!ptrax)
+		return ERROR_FAIL;
+	if (ptrax->valid) {
+		ptrax->target = NULL;
+		free(ptrax->sink_list);
+		free(ptrax->memaccess_buf);
+	    trax_tsock_release(ptrax);
+		ptrax->valid = false;
+	}
+	return ERROR_OK;
+}
+
+int trax_init(void)
+{
+	trax = NULL;
+	ntrax = 0;
+	return 0;
 }
 
 int trax_exit(void)
 {
-	free(trax.sink_list);
-	free(trax.memaccess_buf);
-	return ERROR_OK;
+	int ret = ERROR_OK;
+	for (unsigned int i = 0; i < ntrax; i++)
+		if (trax[i].valid)
+			ret = trax_free(i);
+	free(trax);
+	trax = NULL;
+	ntrax = 0;
+	return ret;
 }
 
-int trax_setup(void)
+static int trax_register_source(unsigned int trid, const struct trax_source source)
 {
-	trax.changed = true;
-	trax.configured = true;
-	return ERROR_OK;
-}
-
-int trax_register_source(const struct trax_source source,
-		struct target *target)
-{
-	if (!source.attach)
+	struct trax *ptrax = trax_get_ptr(trid);
+	if (!ptrax)
 		return ERROR_FAIL;
-
-	if (!source.start || !source.stop)
+	if (!source.attach || !source.write ||
+		!source.start || !source.stop ||
+		!source.dm_readreg || !source.dm_writereg)
 		return ERROR_FAIL;
-
-	if (!source.write)
-		return ERROR_FAIL;
-
-	trax.source = source;
-	trax.target = target;
-
+	ptrax->source.attach = source.attach;
+	ptrax->source.start = source.start;
+	ptrax->source.stop = source.stop;
+	ptrax->source.write = source.write;
+	ptrax->source.dm_readreg = source.dm_readreg;
+	ptrax->source.dm_writereg = source.dm_writereg;
 	return ERROR_OK;
 }
 
-int trax_start(void)
+int trax_start(unsigned int trid, struct target *target, const struct trax_source source)
 {
-	if (trax.started)
-		return ERROR_OK;
-
-	if (!trax.found || trax.changed) {
-		trax.source.attach(trax.target, &trax.found, &trax.is_xtensa);
-
-		trax.changed = false;
-
-		if (trax.found) {
-			LOG_INFO("trax: Attach found TRAX target");
-			trax.ctrl.num_up_channels = 1;
-			trax.ctrl.num_down_channels = 1;
-		} else {
-			LOG_ERROR("trax: Attach did not find any TRAX targets");
-			return ERROR_OK;	// allow openocd to continue running
-		}
-	}
-
-	int ret = trax.source.start(trax.target, NULL);
-
-	if (ret != ERROR_OK)
-		return ret;
-
-	trax.started = true;
-
-	return ERROR_OK;
-}
-
-int trax_stop(void)
-{
-	int ret;
-
-	if (!trax.configured) {
-		LOG_ERROR("trax: Not configured");
+	struct trax *ptrax;
+	if (trax_alloc(trid) || trax_register_source(trid, source)) {
+		trax_free(trid);
 		return ERROR_FAIL;
 	}
 
-	trax.started = false;
+	ptrax = &trax[trid];
+	ptrax->source.attach(target, &ptrax->found, &ptrax->is_xtensa);
+	if (!ptrax->found) {
+		LOG_ERROR("trax: Attach did not find any TRAX targets");
+		return ERROR_OK;	// allow openocd to continue running
+	}
 
-	ret = trax.source.stop(trax.target, NULL);
-
+	int ret = ptrax->source.start(target, NULL);
 	if (ret != ERROR_OK)
 		return ret;
 
+	LOG_INFO("trax: Attach found TRAX target");
+	ptrax->ctrl.num_up_channels++;
+	ptrax->ctrl.num_down_channels++;
+	ptrax->target = target;
 	return ERROR_OK;
 }
 
-static int adjust_sink_list(size_t length)
+int trax_stop(unsigned int trid)
+{
+	struct trax *ptrax = trax_get_ptr(trid);
+	if (!ptrax)
+		return ERROR_FAIL;
+	if (!ptrax->valid)
+		return ERROR_FAIL;
+	if (!ptrax->ctrl.num_up_channels || !ptrax->ctrl.num_down_channels) {
+		LOG_ERROR("trax: No channels configured");
+		return ERROR_FAIL;
+	}
+
+	ptrax->ctrl.num_up_channels--;
+	ptrax->ctrl.num_down_channels--;
+	if (!ptrax->ctrl.num_up_channels || !ptrax->ctrl.num_down_channels)
+		return trax_free(trid);
+	return ERROR_OK;
+}
+
+static int adjust_sink_list(struct trax *ptrax, size_t length)
 {
 	struct trax_sink_list **tmp;
 
-	if (length <= trax.sink_list_length)
+	if (length <= ptrax->sink_list_length)
 		return ERROR_OK;
 
-	tmp = realloc(trax.sink_list, sizeof(struct trax_sink_list *) * length);
-
+	tmp = realloc(ptrax->sink_list, sizeof(struct trax_sink_list *) * length);
 	if (!tmp)
 		return ERROR_FAIL;
 
-	for (size_t i = trax.sink_list_length; i < length; i++)
+	for (size_t i = ptrax->sink_list_length; i < length; i++)
 		tmp[i] = NULL;
-
-	trax.sink_list = tmp;
-	trax.sink_list_length = length;
-
+	ptrax->sink_list = tmp;
+	ptrax->sink_list_length = length;
 	return ERROR_OK;
 }
 
-int trax_register_sink(unsigned int channel_index, void *user_data)
+// NOTE: Currently only one sink per TRAX/TCP channel is supported.
+// Multiple TRAX/TCP channels are supported, but each with only one sink.
+// TPACK muxes multiple virtual channels over each TRAX/TCP channel.
+//
+// TODO: The sink list could be removed once we're sure we don't
+// eventually plan to allow multiple sinks per TRAX/TCP channel...
+int trax_register_sink(unsigned int chid, void *user_data)
 {
 	struct trax_sink_list *tmp;
+	struct trax *ptrax = trax_get_ptr(chid);
+	if (!ptrax)
+		return ERROR_FAIL;
 
-	if (channel_index >= trax.sink_list_length) {
-		if (adjust_sink_list(channel_index + 1) != ERROR_OK)
+	if (chid >= ntrax || !ptrax || !ptrax->valid)
+		return ERROR_FAIL;
+	if (chid < ptrax->sink_list_length && ptrax->sink_list[chid]) {
+		LOG_ERROR("trax: Already registered sink for channel %u", chid);
+		return ERROR_FAIL;
+	}
+	if (chid >= ptrax->sink_list_length) {
+		if (adjust_sink_list(ptrax, chid + 1) != ERROR_OK)
 			return ERROR_FAIL;
 	}
 
-	LOG_DEBUG("trax: Registering sink for channel %u", channel_index);
+	LOG_DEBUG("trax: Registering sink for channel %u", chid);
 
 	tmp = malloc(sizeof(struct trax_sink_list));
 
@@ -208,35 +253,33 @@ int trax_register_sink(unsigned int channel_index, void *user_data)
 		return ERROR_FAIL;
 
 	tmp->user_data = user_data;
-	tmp->next = trax.sink_list[channel_index];
-
-	trax.sink_list[channel_index] = tmp;
-
+	tmp->next = ptrax->sink_list[chid];
+	ptrax->sink_list[chid] = tmp;
 	return ERROR_OK;
 }
 
-int trax_unregister_sink(unsigned int channel_index, void *user_data)
+int trax_unregister_sink(unsigned int chid, void *user_data)
 {
 	struct trax_sink_list *prev_sink;
-
-	LOG_DEBUG("trax: Unregistering sink for channel %u", channel_index);
-
-	if (channel_index >= trax.sink_list_length)
+	struct trax *ptrax = trax_get_ptr(chid);
+	if (!ptrax)
 		return ERROR_FAIL;
 
-	prev_sink = trax.sink_list[channel_index];
+	if (!ptrax->valid || chid >= ptrax->sink_list_length)
+		return ERROR_FAIL;
 
-	for (struct trax_sink_list *sink = trax.sink_list[channel_index]; sink;
+	LOG_DEBUG("trax: Unregistering sink for channel %u", chid);
+	prev_sink = ptrax->sink_list[chid];
+	for (struct trax_sink_list *sink = ptrax->sink_list[chid]; sink;
 			prev_sink = sink, sink = sink->next) {
 		if (sink->user_data == user_data) {
-			if (sink == trax.sink_list[channel_index])
-				trax.sink_list[channel_index] = sink->next;
+			if (sink == ptrax->sink_list[chid])
+				ptrax->sink_list[chid] = sink->next;
 			else
 				prev_sink->next = sink->next;
-
 			free(sink);
-			trax_tsock_release();	// multiple sinks/channels not yet supported
-
+			if (!ptrax->sink_list[chid])
+				trax_tsock_release(ptrax);
 			return ERROR_OK;
 		}
 	}
@@ -247,13 +290,14 @@ int trax_unregister_sink(unsigned int channel_index, void *user_data)
 // Implement TPACK send_bytes() call here since we need the sink connection
 int send_bytes(tpack_socket *tsock, unsigned char *buffer, int length)
 {
-	tsock = tsock;	// TODO: support multiple TRAX units
-
-	struct connection *connection = (struct connection *)(trax.sink_list[0]->user_data);
+	unsigned int trid = (tsock && tsock->gchannel && tsock->gchannel->rx_packet_arg) ?
+		*(unsigned int *)tsock->gchannel->rx_packet_arg : 0;
+	struct connection *connection = (struct connection *)(trax[trid].sink_list[trid]->user_data);
 	int ret = connection_write(connection, buffer, length);
 	if (ret < 0) {
 		LOG_ERROR("Failed to write data to socket.");
-		tsock->tx_done = -1;
+		if (tsock)
+			tsock->tx_done = -1;
 	} else if (ret > 0) {
 		ret = 0;	// TPACK expects a success/fail return
 	}
@@ -262,53 +306,57 @@ int send_bytes(tpack_socket *tsock, unsigned char *buffer, int length)
 
 // Special handling of first packet on a new connection
 // Allocate and initialize TPACK-related structures
-static int trax_tsock_create(void)
+static tpack_socket *trax_tsock_create(unsigned int trid)
 {
-	if (!trax.tsock) {
-		trax.tsock = calloc(1, sizeof(tpack_socket));
-		if (!trax.tsock) {
-			LOG_ERROR("trax tsock: out of memory");
-			return ERROR_FAIL;
-		}
-		// Initialization similar to contents of tpack_sock_startup()
-		trax.tsock->alloc_chans = TPACK_DEFAULT_ALLOC_CHANNELS;
-		trax.tsock->channels = trax.tsock->dchannels;
-		trax.tsock->gchannel = tpack_channel_alloc(trax.tsock,
-			trax_tpack_gchan_rx_packet, NULL, 0, sizeof(tpack_channel), 0);
-		if (!trax.tsock->gchannel) {
-			LOG_ERROR("trax gchan: out of memory");
-			free(trax.tsock);
-			trax.tsock = NULL;
-			return ERROR_FAIL;
-		}
-		trax.tsock->gchannel->tsock = trax.tsock;
+	tpack_socket *tsock = calloc(1, sizeof(tpack_socket));
+	if (!tsock) {
+		LOG_ERROR("trax tsock: out of memory");
+		return NULL;
 	}
-	return ERROR_OK;
+	// Initialization similar to contents of tpack_sock_startup()
+	tsock->alloc_chans = TPACK_DEFAULT_ALLOC_CHANNELS;
+	tsock->channels = tsock->dchannels;
+	tsock->trid = trid;
+	tsock->gchannel = tpack_channel_alloc(tsock,
+		trax_tpack_gchan_rx_packet, (void *)&tsock->trid, 0, sizeof(tpack_channel), 0);
+	if (!tsock->gchannel) {
+		LOG_ERROR("trax gchan: out of memory");
+		free(tsock);
+		return NULL;
+	}
+	tsock->gchannel->tsock = tsock;
+	return tsock;
 }
 
-static int trax_tsock_release(void)
+static void trax_tsock_release(struct trax *ptrax)
 {
-	if (trax.tsock) {
-		tpack_channel_release(trax.tsock->gchannel);
-		trax.tsock->gchannel = NULL;
-		free(trax.tsock->channels);
-		trax.tsock->channels = NULL;
-		free(trax.tsock);
-		trax.tsock = NULL;
+	tpack_socket *tsock = ptrax->tsock;
+	if (tsock) {
+		tpack_channel_release(tsock->gchannel);
+		if (tsock->channels != tsock->dchannels)	/* can't free dchannels[] */
+			free(tsock->channels);
+		free(tsock);
+		ptrax->tsock = NULL;
 	}
-	return ERROR_OK;
 }
 
-static int trax_handle_init_packet(tpack_init_packet *init_pkt)
+static int trax_handle_init_packet(unsigned int trid, tpack_init_packet *init_pkt)
 {
 	tpack_init_packet send_pkt;
 	tpack_apinfo *apinfo;
-	int retval, rcode;
+	int retval = ERROR_OK, rcode;
+	struct trax *ptrax = trax_get_ptr(trid);
+	if (!ptrax) {
+		LOG_ERROR("trax: invalid trid %d or NULL instance", trid);
+		return 0;
+	}
 
 	// Create structures for new connection
-	retval = trax_tsock_create();
-	if (retval != ERROR_OK)
-		return ERROR_FAIL;	// trax.tsock not allocated so cannot send packet response
+	if (!ptrax->tsock) {
+		ptrax->tsock = trax_tsock_create(trid);
+		if (!ptrax->tsock)
+			return ERROR_FAIL;	// tsock not allocated so cannot send packet response
+	}
 
 	// Send handshake packet with STARTUP rcode
 	// NOTE: send occurs prior to receive packet processing
@@ -316,13 +364,14 @@ static int trax_handle_init_packet(tpack_init_packet *init_pkt)
 	memset(&send_pkt, 0, sizeof(tpack_init_packet));
 	send_pkt.min_version = TPACK_VERSION;
 	send_pkt.max_version = TPACK_VERSION;
-	if (tpack_send(trax.tsock->gchannel, &apinfo, 0, &send_pkt.h, sizeof(tpack_init_packet), 0, 0, rcode, 0, 0, 0, 0)) {
+	if (tpack_send(ptrax->tsock->gchannel, &apinfo, 0,
+			&send_pkt.h, sizeof(tpack_init_packet), 0, 0, rcode, 0, 0, 0, 0)) {
 		LOG_ERROR("trax: failed to send handshake packet");
 		return ERROR_FAIL;
 	}
 
 	// Receive and process handshake packet
-	tpack_receive_process_header(trax.tsock, &init_pkt->h, &apinfo);
+	tpack_receive_process_header(ptrax->tsock, &init_pkt->h, &apinfo);
 	if (init_pkt->h.rcode != TPACK_CMD_STARTUP ||
 		init_pkt->min_version > TPACK_VERSION || init_pkt->max_version < TPACK_VERSION) {
 		LOG_ERROR("trax: invalid/incompatible init packet");
@@ -332,7 +381,7 @@ static int trax_handle_init_packet(tpack_init_packet *init_pkt)
 	return retval;
 }
 
-static int trax_handle_recv_packet(tpack_header *packet, size_t dispatch_len)
+static int trax_handle_recv_packet(struct trax *ptrax, tpack_header *packet, size_t dispatch_len)
 {
 	tpack_channel *tchan = NULL;
 	tpack_apinfo *apinfo = NULL;
@@ -340,7 +389,7 @@ static int trax_handle_recv_packet(tpack_header *packet, size_t dispatch_len)
 	void *rx_arg = NULL;
 	int rc;
 
-	tchan = tpack_receive_process_header(trax.tsock, packet, &apinfo);
+	tchan = tpack_receive_process_header(ptrax->tsock, packet, &apinfo);
 	if (!tchan) {
 		LOG_ERROR("trax: receive processing resulted in invalid channel");
 		return ERROR_FAIL;
@@ -352,13 +401,13 @@ static int trax_handle_recv_packet(tpack_header *packet, size_t dispatch_len)
 	// TODO: How many bytes do we dispatch?
 	if (apinfo != 0) {
 		tpack_active_release(tchan, apinfo);        /* done with this rx packet */
-		trax.tsock->rx_apinfo = 0;                  /* (just to be sure) */
+		ptrax->tsock->rx_apinfo = 0;                /* (just to be sure) */
 	}
-	// TODO: handle partial packets using rc = trax.tsock->rx_piece_no++;
+	// TODO: handle partial packets using rc = ptrax->tsock->rx_piece_no++;
 	rc = 0;
-	tpack_print_packet(trax.tsock, tchan, "recv", apinfo, packet, dispatch_len, 0, 0, 0);
+	tpack_print_packet(ptrax->tsock, tchan, "recv", apinfo, packet, dispatch_len, 0, 0, 0);
 	if (tchan != 0)									/* if packet not being dropped */
-		tpack_process_receive_packet(trax.tsock, tchan, rc, packet, dispatch_len, rx_func, rx_arg);
+		tpack_process_receive_packet(ptrax->tsock, tchan, rc, packet, dispatch_len, rx_func, rx_arg);
 	// Above might close channel, etc, so do nothing afterwards (here).
 
 	// TODO: ensure EAGAIN / EINTR / socket errors are handled gracefully
@@ -367,7 +416,12 @@ static int trax_handle_recv_packet(tpack_header *packet, size_t dispatch_len)
 
 int trax_write_channel(unsigned int channel_index, const uint8_t *buffer, size_t *length)
 {
-	if (channel_index >= trax.ctrl.num_up_channels) {
+	struct trax *ptrax = trax_get_ptr(channel_index);
+	if (!ptrax) {
+		LOG_ERROR("trax: invalid trid %d or NULL instance", channel_index);
+		return 0;
+	}
+	if (!ptrax->ctrl.num_up_channels || !ptrax->ctrl.num_down_channels) {
 		LOG_ERROR("trax: Down-channel %u is not available", channel_index);
 		return ERROR_FAIL;
 	}
@@ -378,28 +432,25 @@ int trax_write_channel(unsigned int channel_index, const uint8_t *buffer, size_t
 		return ERROR_FAIL;
 	}
 
-	if (!trax.tsock)
-		return trax_handle_init_packet((tpack_init_packet *)buffer);
+	if (!ptrax->tsock)
+		return trax_handle_init_packet(channel_index, (tpack_init_packet *)buffer);
 
 	// Run packet through TPACK processing logic (similar to tpack_process_receive())
-	int retval = trax_handle_recv_packet((tpack_header *)buffer, *length);
+	int retval = trax_handle_recv_packet(ptrax, (tpack_header *)buffer, *length);
 	return retval;
 }
 
-bool trax_started(void)
-{
-	return trax.started;
-}
-
-bool trax_configured(void)
-{
-	return trax.configured;
-}
-
-static int trax_tpack_gchan_rx_packet(tpack_channel *gchan, void *arg, int pieceno, tpack_header *packet, int len)
+static int trax_tpack_gchan_rx_packet(tpack_channel *gchan, void *arg,
+				int pieceno, tpack_header *packet, int len)
 {
 	tpack_socket *tsock = gchan->tsock;
 	trax_packet reply;
+	unsigned int trid = arg ? *(unsigned int *)arg : 0;
+	struct trax *ptrax = trax_get_ptr(trid);
+	if (!ptrax) {
+		LOG_ERROR("trax: invalid trid %d or NULL instance", trid);
+		return 0;
+	}
 
 	tpack_print_packet(tsock, gchan, "info: packet:", 0, packet, len, 0, 0, 0);
 
@@ -428,7 +479,7 @@ static int trax_tpack_gchan_rx_packet(tpack_channel *gchan, void *arg, int piece
 	switch (packet->rcode) {
 	case TPACK_CMD_LIST:
 	{
-		reply.data[0] = htonl(DEVICE_COUNT);
+		reply.data[0] = htonl(TRAX_TARGETS_PER_DEV);
 		tpack_send(gchan, 0, packet, &reply.h, sizeof(tpack_header) + 4, 0, 0, 0, 0, 0, 0, 0);
 		break;
 	}
@@ -442,10 +493,10 @@ static int trax_tpack_gchan_rx_packet(tpack_channel *gchan, void *arg, int piece
 		/*  What is being opened?  */
 		if (major == TPACK_MAJOR_TRAX) {
 			/*  A TRAX unit!  What a surprise.  Which one?  */
-			if (minor >= DEVICE_COUNT) {
+			if (minor >= TRAX_TARGETS_PER_DEV) {
 				/*  Invalid TRAX unit (device) number, out of range.  */
 				LOG_DEBUG("open request for out-of-range TRAX device number %d (only have %d units)",
-					minor, DEVICE_COUNT);
+					minor, TRAX_TARGETS_PER_DEV);
 				tpack_send(gchan, 0, packet, &reply.h, 0, 0, 0, ERROR_FAIL, 0, 0, 0, 0);
 				break;
 			}
@@ -458,7 +509,7 @@ static int trax_tpack_gchan_rx_packet(tpack_channel *gchan, void *arg, int piece
 
 			tpack_channel *tchan;
 			if (tpack_channel_open_accept(gchan, packet, &tchan,
-					trax_tpack_tchan_rx_packet, NULL, 1024, sizeof(tpack_channel), 0))
+					trax_tpack_tchan_rx_packet, arg, 1024, sizeof(tpack_channel), 0))
 				break;
 		} else if (major == TPACK_MAJOR_GENERIC) {
 			tpack_print_packet(tsock, gchan, "generic open requests not supported",
@@ -484,14 +535,21 @@ static int trax_tpack_gchan_rx_packet(tpack_channel *gchan, void *arg, int piece
 	return 0;
 }
 
-static int trax_tpack_tchan_rx_packet(tpack_channel *tchan, void *arg, int pieceno, tpack_header *packet, int len)
+static int trax_tpack_tchan_rx_packet(tpack_channel *tchan, void *arg,
+				int pieceno, tpack_header *packet, int len)
 {
+	unsigned int trid = arg ? *(unsigned int *)arg : 0;
 	tpack_socket *tsock = tchan->tsock;
 	trax_packet *tpacket = (trax_packet *)packet;
 	trax_packet reply;
 	uint32_t regno, value;
 	uint32_t addr, count;
 	int rc = ERROR_OK;
+	struct trax *ptrax = trax_get_ptr(trid);
+	if (!ptrax) {
+		LOG_ERROR("trax: invalid trid %d or NULL instance", trid);
+		return 0;
+	}
 
 	LOG_DEBUG("trax TPACK tchan rx_packet: tchan %p arg %p pieceno %d packet %p len %d",
 		tchan, arg, pieceno, packet, len);
@@ -532,7 +590,7 @@ static int trax_tpack_tchan_rx_packet(tpack_channel *tchan, void *arg, int piece
 			LOG_DEBUG("TRAX: Ignoring pseudo-reg read to 0x%x", regno);
 			break;
 		}
-		rc = trax.source.dm_readreg(trax.target, regno, &value);
+		rc = ptrax->source.dm_readreg(ptrax->target, regno, &value);
 		LOG_DEBUG("TRAX: ReadReg: 0x%x = %x (%d)", regno, value, rc);
 		reply.data[0] = htonl(value);
 		rc = tpack_send(tchan, 0, packet, &reply.h, sizeof(tpack_header) + 4, 0, 0, rc, 0, 0, 0, 0);
@@ -560,7 +618,7 @@ static int trax_tpack_tchan_rx_packet(tpack_channel *tchan, void *arg, int piece
 			LOG_ERROR("TRAX: skipping invalid write to register 0x%x", regno);
 			break;
 		}
-		rc = trax.source.dm_writereg(trax.target, regno, value);
+		rc = ptrax->source.dm_writereg(ptrax->target, regno, value);
 		LOG_DEBUG("TRAX: WriteReg: 0x%x -> %x (%d)", regno, value, rc);
 		break;
 	}
@@ -569,7 +627,7 @@ static int trax_tpack_tchan_rx_packet(tpack_channel *tchan, void *arg, int piece
 	{
 		addr = ntohl(tpacket->data[0]);
 		count = ntohl(tpacket->data[1]);
-		uint8_t *data = trax.memaccess_buf;
+		uint8_t *data = ptrax->memaccess_buf;
 
 		if (packet->length < sizeof(tpack_header) + 8) {
 			LOG_ERROR("TRAX: readmem packet too small (%d bytes)", packet->length);
@@ -581,7 +639,7 @@ static int trax_tpack_tchan_rx_packet(tpack_channel *tchan, void *arg, int piece
 			rc = ERROR_FAIL;
 			break;
 		}
-		rc = trax_readmem(data, addr, count);
+		rc = trax_readmem(ptrax, data, addr, count);
 		/*  If successful, rc == number of bytes read. */
 		LOG_DEBUG("TRAX: Read memory: 0x%x [0x%x bytes] rcode=%d", addr, count, (int)rc);
 		rc = tpack_send(tchan, 0, packet, &reply.h, 0, data, count, rc, 0, 0, 0, 0);
@@ -604,7 +662,7 @@ static int trax_tpack_tchan_rx_packet(tpack_channel *tchan, void *arg, int piece
 		chunk = len - (sizeof(tpack_header) + 8); /* how much we have now to write */
 		if (chunk > count)
 			chunk = count;
-		rc = trax_writemem((uint8_t *)&tpacket->data[2], addr, chunk);
+		rc = trax_writemem(ptrax, (uint8_t *)&tpacket->data[2], addr, chunk);
 		/*  If successful, rc == number of bytes written.  */
 		LOG_DEBUG("TRAX: Write memory: 0x%x [0x%x bytes] rcode=%d", addr, count, (int)rc);
 		// TODO: manage multiple packets?
@@ -628,17 +686,17 @@ static int trax_tpack_tchan_rx_packet(tpack_channel *tchan, void *arg, int piece
 	return 0;
 }
 
-static void set_ram_size(void)
+static void set_ram_size(struct trax *ptrax)
 {
 	uint32_t start_addr = 0;
 	uint32_t end_addr = 0 /* trace RAM size */;
 
-	trax.source.dm_readreg(trax.target, TRAX_REG_MEMADDRSTART, &start_addr);
-	trax.source.dm_readreg(trax.target, TRAX_REG_MEMADDREND, &end_addr);
-	trax.ram_size = start_addr - end_addr;
+	ptrax->source.dm_readreg(ptrax->target, TRAX_REG_MEMADDRSTART, &start_addr);
+	ptrax->source.dm_readreg(ptrax->target, TRAX_REG_MEMADDREND, &end_addr);
+	ptrax->ram_size = start_addr - end_addr;
 
-	trax.start_addr = start_addr;
-	trax.end_addr   = end_addr;
+	ptrax->start_addr = start_addr;
+	ptrax->end_addr   = end_addr;
 }
 
 /* This is a general function used to check if wraparound has occurred.
@@ -650,9 +708,9 @@ static void set_ram_size(void)
  *            wraparound have been made, it contains the value post
  *            increment
  */
-static void increment_address(uint32_t *address)
+static void increment_address(struct trax *ptrax, uint32_t *address)
 {
-	uint32_t trax_mask = trax.end_addr;
+	uint32_t trax_mask = ptrax->end_addr;
 	uint32_t old_address = *address;
 	uint32_t wrapcnt = 0;
 
@@ -661,15 +719,17 @@ static void increment_address(uint32_t *address)
 
 	/* If we reach the endaddr, the next address would be the startaddr, along
 	 * with an increment in the wrap count */
-	if ((old_address & trax_mask) == (trax.end_addr & trax_mask))
-		*address = (trax.start_addr | ((wrapcnt + 1) << TRAX_ADDRESS_WRAP_SHIFT));
+	if ((old_address & trax_mask) == (ptrax->end_addr & trax_mask))
+		*address = (ptrax->start_addr | ((wrapcnt + 1) << TRAX_ADDRESS_WRAP_SHIFT));
 	else
 		*address = old_address + 1;
 	LOG_DEBUG("TRAX: New TRAXADDR: 0x%x", *address);
 }
 
 
-static int trax_accessmem(uint8_t *data, uint32_t tram_addr, uint32_t len, uint32_t read)
+static int trax_accessmem(struct trax *ptrax,
+		uint8_t *data, uint32_t tram_addr,
+		uint32_t len, uint32_t read)
 {
 	uint32_t status, bytes;
 	uint32_t saved_address, check_address, address;
@@ -677,10 +737,10 @@ static int trax_accessmem(uint8_t *data, uint32_t tram_addr, uint32_t len, uint3
 	uint32_t *ptr = (uint32_t *)data;	// TODO: handle host endianness...
 
 	LOG_DEBUG("TRAX: Set Memory Size");
-	set_ram_size();
+	set_ram_size(ptrax);
 
 	LOG_DEBUG("TRAX: Read Status register");
-	trax.source.dm_readreg(trax.target, TRAX_REG_TRAXSTAT, &status);
+	ptrax->source.dm_readreg(ptrax->target, TRAX_REG_TRAXSTAT, &status);
 
 	if (status & TRAX_STATUS_TRACT) {
 		LOG_ERROR("TRAX: Memory access attempted while trace active");
@@ -689,20 +749,26 @@ static int trax_accessmem(uint8_t *data, uint32_t tram_addr, uint32_t len, uint3
 
 	LOG_DEBUG("TRAX: Save Address register");
 
-	trax.source.dm_readreg(trax.target, TRAX_REG_TRAXADDR, &saved_address);
+	ptrax->source.dm_readreg(ptrax->target, TRAX_REG_TRAXADDR, &saved_address);
 
 	address = tram_addr / 4;
 
 	LOG_DEBUG("TRAX: Write 0x%x to TRAX_REG_TRAXADDR (saved:0x%x)", address, saved_address);
-	trax.source.dm_writereg(trax.target, TRAX_REG_TRAXADDR, address);
+	ptrax->source.dm_writereg(ptrax->target, TRAX_REG_TRAXADDR, address);
 
 	for (bytes = 0; bytes < len;) {
 		uint32_t cur_data;
 
 		if (read) {
-			if (trax.is_xtensa) {
-				trax.source.dm_readreg(trax.target, TRAX_REG_TRAXDATA, &cur_data);
-				trax.source.dm_readreg(trax.target, TRAX_REG_TRAXSTAT, &status);
+			if (ptrax->source.dm_readreg(ptrax->target, TRAX_REG_TRAXDATA, &cur_data) != ERROR_OK) {
+				LOG_ERROR("TRAX: read TRAXDATA register failed. Abort");
+				break;
+			}
+			if (ptrax->is_xtensa) {
+				if (ptrax->source.dm_readreg(ptrax->target, TRAX_REG_TRAXSTAT, &status) != ERROR_OK) {
+					LOG_ERROR("TRAX: read TRAXSTAT register failed. Abort");
+					break;
+				}
 
 				if (status & TRAX_STATUS_BUSY) {
 					if (retry_cnt++ == RETRY_MAX) {
@@ -717,38 +783,40 @@ static int trax_accessmem(uint8_t *data, uint32_t tram_addr, uint32_t len, uint3
 			retry_cnt = 0;
 			*ptr++ = cur_data;
 			bytes += 4;
-			increment_address(&address);
+			increment_address(ptrax, &address);
 		} else {
-			trax.source.dm_writereg(trax.target, TRAX_REG_TRAXDATA, *ptr++);
+			if (ptrax->source.dm_writereg(ptrax->target, TRAX_REG_TRAXDATA, *ptr++) != ERROR_OK) {
+				LOG_ERROR("TRAX: write TRAXDATA register failed. Abort");
+				break;
+			}
 			bytes += 4;
-			increment_address(&address);
+			increment_address(ptrax, &address);
 		}
 	}
 	LOG_DEBUG("TRAX: Total bytes %s = %d", (read ? "read" : "write"), bytes);
 
 	/*  Check whether address got updated as expected.  */
 
-	trax.source.dm_readreg(trax.target, TRAX_REG_TRAXADDR, &check_address);
+	ptrax->source.dm_readreg(ptrax->target, TRAX_REG_TRAXADDR, &check_address);
 
 	if (address != check_address) {
 		LOG_ERROR("TRAX: Expected address(0x%x) differs trax address (0x%x)!", address, check_address);
 		return ERROR_FAIL;	/* bad address check */
-	} else {
-		LOG_DEBUG("TRAX: Expected address (0x%x) OK", address);
 	}
+	LOG_DEBUG("TRAX: Expected address (0x%x) OK", address);
 
 	/* Finally, restore the address register  */
 	LOG_DEBUG("TRAX: Restore Trax Address register");
-	trax.source.dm_writereg(trax.target, TRAX_REG_TRAXADDR, saved_address);
+	ptrax->source.dm_writereg(ptrax->target, TRAX_REG_TRAXADDR, saved_address);
 	return bytes;
 }
 
-static int trax_readmem(uint8_t *data, uint32_t addr, uint32_t count)
+static int trax_readmem(struct trax *ptrax, uint8_t *data, uint32_t addr, uint32_t count)
 {
-	return trax_accessmem(data, addr, count, 1);
+	return trax_accessmem(ptrax, data, addr, count, 1);
 }
 
-static int trax_writemem(uint8_t *data, uint32_t addr, uint32_t count)
+static int trax_writemem(struct trax *ptrax, uint8_t *data, uint32_t addr, uint32_t count)
 {
-	return trax_accessmem(data, addr, count, 0);
+	return trax_accessmem(ptrax, data, addr, count, 0);
 }

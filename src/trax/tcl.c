@@ -20,9 +20,12 @@
 COMMAND_HANDLER(handle_trax_start_command)
 {
 	struct trax_source source;
+	unsigned int id = 0;
 
-	if (CMD_ARGC > 0)
+	if (CMD_ARGC > 1)
 		return ERROR_COMMAND_SYNTAX_ERROR;
+	else if (CMD_ARGC == 1)
+		id = strtoul(CMD_ARGV[0], NULL, 0);
 
 	source.attach = &target_trax_attach;
 	source.start = &target_trax_start;
@@ -30,26 +33,19 @@ COMMAND_HANDLER(handle_trax_start_command)
 	source.write = &target_trax_write_callback;
 	source.dm_readreg = &target_trax_dm_readreg;
 	source.dm_writereg = &target_trax_dm_writereg;
-
-	if (trax_setup() != ERROR_OK)
-		return ERROR_FAIL;
-
-	trax_register_source(source, get_current_target(CMD_CTX));
-
-	if (!trax_configured()) {
-		command_print(CMD, "TRAX is not configured");
-		return ERROR_FAIL;
-	}
-
-	return trax_start();
+	return trax_start(id, get_current_target(CMD_CTX), source);
 }
 
 COMMAND_HANDLER(handle_trax_stop_command)
 {
-	if (CMD_ARGC > 0)
-		return ERROR_COMMAND_SYNTAX_ERROR;
+	unsigned int id = 0;
 
-	return trax_stop();
+	if (CMD_ARGC > 1)
+		return ERROR_COMMAND_SYNTAX_ERROR;
+	else if (CMD_ARGC == 1)
+		id = strtoul(CMD_ARGV[0], NULL, 0);
+
+	return trax_stop(id);
 }
 
 static const struct command_registration trax_subcommand_handlers[] = {
@@ -57,15 +53,15 @@ static const struct command_registration trax_subcommand_handlers[] = {
 		.name = "start",
 		.handler = handle_trax_start_command,
 		.mode = COMMAND_EXEC,
-		.help = "start TRAX",
-		.usage = ""
+		.help = "start TRAX channel",
+		.usage = "[chan_id]"
 	},
 	{
 		.name = "stop",
 		.handler = handle_trax_stop_command,
 		.mode = COMMAND_EXEC,
-		.help = "stop TRAX",
-		.usage = ""
+		.help = "stop TRAX channel",
+		.usage = "[chan_id]"
 	},
 	COMMAND_REGISTRATION_DONE
 };

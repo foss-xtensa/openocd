@@ -328,6 +328,7 @@ struct tpack_socket {
 				   (pointed to by channels unless allocated dyn.) */
 	int		  num_chans;	/* number of active channels, including gchannel */
 	int		  alloc_chans;	/* number of entries in channels[] */
+	int		  trid;
 }; /* tpack_socket */
 
 
