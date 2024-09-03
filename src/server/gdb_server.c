@@ -128,9 +128,9 @@ static int gdb_actual_connections;
 /* set if we are sending a memory map to gdb
  * via qXfer:memory-map:read packet */
 /* enabled by default*/
-static int gdb_use_memory_map = 1;
+static bool gdb_use_memory_map = true;
 /* enabled by default*/
-static int gdb_flash_program = 1;
+static bool gdb_flash_program = true;
 
 /* if set, data aborts cause an error to be reported in memory read packets
  * see the code in gdb_read_memory_packet() for further explanations.
@@ -144,7 +144,7 @@ static int gdb_report_register_access_error;
 /* set if we are sending target descriptions to gdb
  * via qXfer:features:read packet */
 /* enabled by default */
-static int gdb_use_target_description = 1;
+static bool gdb_use_target_description = true;
 
 /* current processing free-run type, used by file-I/O */
 static char gdb_running_type;
@@ -1067,15 +1067,15 @@ static int gdb_new_connection(struct connection *connection)
 			target_state_name(target));
 
 	if (!target_was_examined(target)) {
-		LOG_ERROR("Target %s not examined yet, refuse gdb connection %d!",
-				  target_name(target), gdb_connection->unique_index);
+		LOG_TARGET_ERROR(target, "Target not examined yet, refuse gdb connection %d!",
+				  gdb_connection->unique_index);
 		return ERROR_TARGET_NOT_EXAMINED;
 	}
 	gdb_actual_connections++;
 
 	if (target->state != TARGET_HALTED)
-		LOG_WARNING("GDB connection %d on target %s not halted",
-					gdb_actual_connections, target_name(target));
+		LOG_TARGET_WARNING(target, "GDB connection %d not halted",
+					gdb_actual_connections);
 
 	/* DANGER! If we fail subsequently, we must remove this handler,
 	 * otherwise we occasionally see crashes as the timer can invoke the
@@ -1102,9 +1102,8 @@ static int gdb_connection_closed(struct connection *connection)
 	log_remove_callback(gdb_log_callback, connection);
 
 	gdb_actual_connections--;
-	LOG_DEBUG("{%d} GDB Close, Target: %s, state: %s, gdb_actual_connections=%d",
+	LOG_TARGET_DEBUG(target, "{%d} GDB Close, state: %s, gdb_actual_connections=%d",
 		gdb_connection->unique_index,
-		target_name(target),
 		target_state_name(target),
 		gdb_actual_connections);
 
@@ -1233,6 +1232,8 @@ static int gdb_get_reg_value_as_str(struct target *target, char *tstr, struct re
 			tstr[len] = '\0';
 			return ERROR_OK;
 	}
+	memset(tstr, '0', len);
+	tstr[len] = '\0';
 	return ERROR_FAIL;
 }
 
@@ -1277,7 +1278,9 @@ static int gdb_get_registers_packet(struct connection *connection,
 	for (i = 0; i < reg_list_size; i++) {
 		if (!reg_list[i] || reg_list[i]->exist == false || reg_list[i]->hidden)
 			continue;
-		if (gdb_get_reg_value_as_str(target, reg_packet_p, reg_list[i]) != ERROR_OK) {
+		retval = gdb_get_reg_value_as_str(target, reg_packet_p, reg_list[i]);
+		if (retval != ERROR_OK && gdb_report_register_access_error) {
+			LOG_DEBUG("Couldn't get register %s.", reg_list[i]->name);
 			free(reg_packet);
 			free(reg_list);
 			return gdb_error(connection, retval);
@@ -1395,7 +1398,9 @@ static int gdb_get_register_packet(struct connection *connection,
 
 	reg_packet = calloc(DIV_ROUND_UP(reg_list[reg_num]->size, 8) * 2 + 1, 1); /* plus one for string termination null */
 
-	if (gdb_get_reg_value_as_str(target, reg_packet, reg_list[reg_num]) != ERROR_OK) {
+	retval = gdb_get_reg_value_as_str(target, reg_packet, reg_list[reg_num]);
+	if (retval != ERROR_OK && gdb_report_register_access_error) {
+		LOG_DEBUG("Couldn't get register %s.", reg_list[reg_num]->name);
 		free(reg_packet);
 		free(reg_list);
 		return gdb_error(connection, retval);
@@ -1543,7 +1548,7 @@ static int gdb_read_memory_packet(struct connection *connection,
 		 * cmd = view%20audit-trail&database = gdb&pr = 2395
 		 *
 		 * For now, the default is to fix up things to make current GDB versions work.
-		 * This can be overwritten using the gdb_report_data_abort <'enable'|'disable'> command.
+		 * This can be overwritten using the "gdb report_data_abort <'enable'|'disable'>" command.
 		 */
 		memset(buffer, 0, len);
 		retval = ERROR_OK;
@@ -2344,7 +2349,7 @@ static int smp_reg_list_noread(struct target *target,
 					}
 				}
 				if (!found) {
-					LOG_DEBUG("[%s] %s not found in combined list", target_name(target), a->name);
+					LOG_TARGET_DEBUG(target, "%s not found in combined list", a->name);
 					if (local_list_size >= combined_allocated) {
 						combined_allocated *= 2;
 						local_list = realloc(local_list, combined_allocated * sizeof(struct reg *));
@@ -2392,9 +2397,8 @@ static int smp_reg_list_noread(struct target *target,
 				}
 			}
 			if (!found) {
-				LOG_WARNING("Register %s does not exist in %s, which is part of an SMP group where "
-					    "this register does exist.",
-					    a->name, target_name(head->target));
+				LOG_TARGET_WARNING(head->target, "Register %s does not exist, which is part of an SMP group where "
+					    "this register does exist.", a->name);
 			}
 		}
 		free(reg_list);
@@ -2599,7 +2603,7 @@ static int gdb_get_target_description_chunk(struct target *target, struct target
 	return ERROR_OK;
 }
 
-static int gdb_target_description_supported(struct target *target, int *supported)
+static int gdb_target_description_supported(struct target *target, bool *supported)
 {
 	int retval = ERROR_OK;
 	struct reg **reg_list = NULL;
@@ -2631,9 +2635,9 @@ static int gdb_target_description_supported(struct target *target, int *supporte
 
 	if (supported) {
 		if (architecture || feature_list_size)
-			*supported = 1;
+			*supported = true;
 		else
-			*supported = 0;
+			*supported = false;
 	}
 
 error:
@@ -2867,20 +2871,20 @@ static int gdb_query_packet(struct connection *connection,
 		char *buffer = NULL;
 		int pos = 0;
 		int size = 0;
-		int gdb_target_desc_supported = 0;
+		bool gdb_target_desc_supported = false;
 
 		/* we need to test that the target supports target descriptions */
 		retval = gdb_target_description_supported(target, &gdb_target_desc_supported);
 		if (retval != ERROR_OK) {
 			LOG_INFO("Failed detecting Target Description Support, disabling");
-			gdb_target_desc_supported = 0;
+			gdb_target_desc_supported = false;
 		}
 
 		/* support may be disabled globally */
-		if (gdb_use_target_description == 0) {
+		if (!gdb_use_target_description) {
 			if (gdb_target_desc_supported)
 				LOG_WARNING("Target Descriptions Supported, but disabled");
-			gdb_target_desc_supported = 0;
+			gdb_target_desc_supported = false;
 		}
 
 		xml_printf(&retval,
@@ -2889,8 +2893,8 @@ static int gdb_query_packet(struct connection *connection,
 			&size,
 			"PacketSize=%x;qXfer:memory-map:read%c;qXfer:features:read%c;qXfer:threads:read+;QStartNoAckMode+;vContSupported+",
 			GDB_BUFFER_SIZE,
-			((gdb_use_memory_map == 1) && (flash_get_bank_count() > 0)) ? '+' : '-',
-			(gdb_target_desc_supported == 1) ? '+' : '-');
+			(gdb_use_memory_map && (flash_get_bank_count() > 0)) ? '+' : '-',
+			gdb_target_desc_supported ? '+' : '-');
 
 		if (retval != ERROR_OK) {
 			gdb_send_error(connection, 01);
@@ -3006,17 +3010,17 @@ static bool gdb_handle_vcont_packet(struct connection *connection, const char *p
 	/* simple case, a continue packet */
 	if (parse[0] == 'c') {
 		gdb_running_type = 'c';
-		LOG_DEBUG("target %s continue", target_name(target));
+		LOG_TARGET_DEBUG(target, "target continue");
 		gdb_connection->output_flag = GDB_OUTPUT_ALL;
 		retval = target_resume(target, 1, 0, 0, 0);
 		if (retval == ERROR_TARGET_NOT_HALTED)
-			LOG_INFO("target %s was not halted when resume was requested", target_name(target));
+			LOG_TARGET_INFO(target, "target was not halted when resume was requested");
 
 		/* poll target in an attempt to make its internal state consistent */
 		if (retval != ERROR_OK) {
 			retval = target_poll(target);
 			if (retval != ERROR_OK)
-				LOG_DEBUG("error polling target %s after failed resume", target_name(target));
+				LOG_TARGET_DEBUG(target, "error polling target after failed resume");
 		}
 
 		/*
@@ -3094,7 +3098,7 @@ static bool gdb_handle_vcont_packet(struct connection *connection, const char *p
 			}
 		}
 
-		LOG_DEBUG("target %s single-step thread %"PRIx64, target_name(ct), thread_id);
+		LOG_TARGET_DEBUG(ct, "single-step thread %" PRIx64, thread_id);
 		gdb_connection->output_flag = GDB_OUTPUT_ALL;
 		target_call_event_callbacks(ct, TARGET_EVENT_GDB_START);
 
@@ -3136,13 +3140,13 @@ static bool gdb_handle_vcont_packet(struct connection *connection, const char *p
 
 		retval = target_step(ct, current_pc, 0, 0);
 		if (retval == ERROR_TARGET_NOT_HALTED)
-			LOG_INFO("target %s was not halted when step was requested", target_name(ct));
+			LOG_TARGET_INFO(ct, "target was not halted when step was requested");
 
 		/* if step was successful send a reply back to gdb */
 		if (retval == ERROR_OK) {
 			retval = target_poll(ct);
 			if (retval != ERROR_OK)
-				LOG_DEBUG("error polling target %s after successful step", target_name(ct));
+				LOG_TARGET_DEBUG(ct, "error polling target after successful step");
 			/* send back signal information */
 			gdb_signal_reply(ct, connection);
 			/* stop forwarding log packets! */
@@ -3280,7 +3284,7 @@ static int gdb_v_packet(struct connection *connection,
 
 	/* if flash programming disabled - send a empty reply */
 
-	if (gdb_flash_program == 0) {
+	if (!gdb_flash_program) {
 		gdb_put_packet(connection, "", 0);
 		return ERROR_OK;
 	}
@@ -3833,7 +3837,7 @@ static int gdb_target_start(struct target *target, const char *port)
 	if (!gdb_service)
 		return -ENOMEM;
 
-	LOG_INFO("starting gdb server for %s on %s", target_name(target), port);
+	LOG_TARGET_INFO(target, "starting gdb server on %s", port);
 
 	gdb_service->target = target;
 	gdb_service->core[0] = -1;
@@ -3861,20 +3865,20 @@ static int gdb_target_add_one(struct target *target)
 
 	/* skip targets that cannot handle a gdb connections (e.g. mem_ap) */
 	if (!target_supports_gdb_connection(target)) {
-		LOG_DEBUG("skip gdb server for target %s", target_name(target));
+		LOG_TARGET_DEBUG(target, "skip gdb server");
 		return ERROR_OK;
 	}
 
 	if (target->gdb_port_override) {
 		if (strcmp(target->gdb_port_override, "disabled") == 0) {
-			LOG_INFO("gdb port disabled");
+			LOG_TARGET_INFO(target, "gdb port disabled");
 			return ERROR_OK;
 		}
 		return gdb_target_start(target, target->gdb_port_override);
 	}
 
-	if (strcmp(gdb_port, "disabled") == 0) {
-		LOG_INFO("gdb port disabled");
+	if (strcmp(gdb_port_next, "disabled") == 0) {
+		LOG_TARGET_INFO(target, "gdb port disabled");
 		return ERROR_OK;
 	}
 
@@ -3902,6 +3906,8 @@ static int gdb_target_add_one(struct target *target)
 					gdb_port_next = strdup("0");
 				}
 			}
+		} else if (strcmp(gdb_port_next, "pipe") == 0) {
+			gdb_port_next = "disabled";
 		}
 	}
 	return retval;
@@ -3932,7 +3938,7 @@ COMMAND_HANDLER(handle_gdb_sync_command)
 
 	if (!current_gdb_connection) {
 		command_print(CMD,
-			"gdb_sync command can only be run from within gdb using \"monitor gdb_sync\"");
+			"gdb sync command can only be run from within gdb using \"monitor gdb sync\"");
 		return ERROR_FAIL;
 	}
 
@@ -3941,7 +3947,6 @@ COMMAND_HANDLER(handle_gdb_sync_command)
 	return ERROR_OK;
 }
 
-/* daemon configuration command gdb_port */
 COMMAND_HANDLER(handle_gdb_port_command)
 {
 	int retval = CALL_COMMAND_HANDLER(server_pipe_command, &gdb_port);
@@ -3988,7 +3993,6 @@ COMMAND_HANDLER(handle_gdb_report_register_access_error)
 	return ERROR_OK;
 }
 
-/* gdb_breakpoint_override */
 COMMAND_HANDLER(handle_gdb_breakpoint_override_command)
 {
 	if (CMD_ARGC == 0) {
@@ -4065,9 +4069,9 @@ out:
 	return retval;
 }
 
-static const struct command_registration gdb_command_handlers[] = {
+static const struct command_registration gdb_subcommand_handlers[] = {
 	{
-		.name = "gdb_sync",
+		.name = "sync",
 		.handler = handle_gdb_sync_command,
 		.mode = COMMAND_ANY,
 		.help = "next stepi will return immediately allowing "
@@ -4076,7 +4080,7 @@ static const struct command_registration gdb_command_handlers[] = {
 		.usage = ""
 	},
 	{
-		.name = "gdb_port",
+		.name = "port",
 		.handler = handle_gdb_port_command,
 		.mode = COMMAND_CONFIG,
 		.help = "Normally gdb listens to a TCP/IP port. Each subsequent GDB "
@@ -4089,35 +4093,35 @@ static const struct command_registration gdb_command_handlers[] = {
 		.usage = "[port_num]",
 	},
 	{
-		.name = "gdb_memory_map",
+		.name = "memory_map",
 		.handler = handle_gdb_memory_map_command,
 		.mode = COMMAND_CONFIG,
 		.help = "enable or disable memory map",
 		.usage = "('enable'|'disable')"
 	},
 	{
-		.name = "gdb_flash_program",
+		.name = "flash_program",
 		.handler = handle_gdb_flash_program_command,
 		.mode = COMMAND_CONFIG,
 		.help = "enable or disable flash program",
 		.usage = "('enable'|'disable')"
 	},
 	{
-		.name = "gdb_report_data_abort",
+		.name = "report_data_abort",
 		.handler = handle_gdb_report_data_abort_command,
 		.mode = COMMAND_CONFIG,
 		.help = "enable or disable reporting data aborts",
 		.usage = "('enable'|'disable')"
 	},
 	{
-		.name = "gdb_report_register_access_error",
+		.name = "report_register_access_error",
 		.handler = handle_gdb_report_register_access_error,
 		.mode = COMMAND_CONFIG,
 		.help = "enable or disable reporting register access errors",
 		.usage = "('enable'|'disable')"
 	},
 	{
-		.name = "gdb_breakpoint_override",
+		.name = "breakpoint_override",
 		.handler = handle_gdb_breakpoint_override_command,
 		.mode = COMMAND_ANY,
 		.help = "Display or specify type of breakpoint "
@@ -4125,17 +4129,28 @@ static const struct command_registration gdb_command_handlers[] = {
 		.usage = "('hard'|'soft'|'disable')"
 	},
 	{
-		.name = "gdb_target_description",
+		.name = "target_description",
 		.handler = handle_gdb_target_description_command,
 		.mode = COMMAND_CONFIG,
 		.help = "enable or disable target description",
 		.usage = "('enable'|'disable')"
 	},
 	{
-		.name = "gdb_save_tdesc",
+		.name = "save_tdesc",
 		.handler = handle_gdb_save_tdesc_command,
 		.mode = COMMAND_EXEC,
 		.help = "Save the target description file",
+		.usage = "",
+	},
+	COMMAND_REGISTRATION_DONE
+};
+
+static const struct command_registration gdb_command_handlers[] = {
+	{
+		.name = "gdb",
+		.mode = COMMAND_ANY,
+		.help = "GDB commands",
+		.chain = gdb_subcommand_handlers,
 		.usage = "",
 	},
 	COMMAND_REGISTRATION_DONE

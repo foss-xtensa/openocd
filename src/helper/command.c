@@ -1360,6 +1360,27 @@ int command_parse_bool_arg(const char *in, bool *out)
 	return ERROR_COMMAND_SYNTAX_ERROR;
 }
 
+COMMAND_HELPER(command_parse_str_to_buf, const char *str, void *buf, unsigned int buf_len)
+{
+	assert(str);
+	assert(buf);
+
+	int ret = str_to_buf(str, buf, buf_len);
+	if (ret == ERROR_OK)
+		return ret;
+
+	/* Provide a clear error message to the user */
+	if (ret == ERROR_INVALID_NUMBER) {
+		command_print(CMD, "'%s' is not a valid number", str);
+	} else if (ret == ERROR_NUMBER_EXCEEDS_BUFFER) {
+		command_print(CMD, "Number %s exceeds %u bits", str, buf_len);
+	} else {
+		command_print(CMD, "Could not parse number '%s'", str);
+	}
+
+	return ERROR_COMMAND_ARGUMENT_INVALID;
+}
+
 COMMAND_HELPER(handle_command_parse_bool, bool *out, const char *label)
 {
 	switch (CMD_ARGC) {

@@ -331,7 +331,7 @@ union xtensa_reg_val_u {
 	uint8_t buf[4];
 };
 
-static const struct xtensa_keyval_info_s xt_qerr[XT_QERR_NUM] = {
+static const struct xtensa_keyval_info xt_qerr[XT_QERR_NUM] = {
 	{ .chrval = "E00", .intval = ERROR_FAIL },
 	{ .chrval = "E01", .intval = ERROR_FAIL },
 	{ .chrval = "E02", .intval = ERROR_COMMAND_ARGUMENT_INVALID },
@@ -540,7 +540,7 @@ static void xtensa_queue_exec_ins_wide(struct xtensa *xtensa, uint8_t *ops, uint
 		for (int32_t i = oplenw - 1; i > 0; i--)
 			xtensa_queue_dbg_reg_write(xtensa,
 				XDMREG_DIR0 + i,
-				target_buffer_get_u32(xtensa->target, &ops_padded[sizeof(uint32_t)*i]));
+				target_buffer_get_u32(xtensa->target, &ops_padded[sizeof(uint32_t) * i]));
 		/* Write DIR0EXEC last */
 		xtensa_queue_dbg_reg_write(xtensa,
 			XDMREG_DIR0EXEC,
